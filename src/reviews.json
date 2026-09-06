@@ -1,0 +1,2105 @@
+{
+  "3": {
+    "id": 3,
+    "title": "Make partner operations durably idempotent",
+    "summary": "Adds database-backed replay for the five operations accepted by `POST /api/v1/partner-batches`. The first stored submission for an `operation_id` determines its result; equivalent retries reuse that result, changed payloads conflict, and handled rejections retain their original details. Adds an `operations` audit table and `GET /api/v1/operations/:operation_id`. Reservation economics are unchanged; existing validation tests are adjusted to use distinct identifiers for distinct attempts.",
+    "requestPath": "docs/requests/03-durable-operations.md",
+    "changes": [
+      {
+        "id": "operation-replay",
+        "title": "Replay operations by `operation_id` and complete JSON payload",
+        "target": "`POST /api/v1/partner-batches`: `open_group`, `record_cash_payment`, `apply_hotel_credit`, `reschedule_group`, and `cancel_group`",
+        "required": "Use `operation_id` to prevent duplicate effects. An equivalent retry must return its stored result. Ignore JSON object key order; preserve array order and values. A different payload under an existing identifier must return `operation_id_conflict` without replacing the record.",
+        "before": "`GroupStay.Partner.process_operation/1` passed each submission into `run/1` and domain validation, even when its `operation_id` had already appeared. For example, a repeated payment could apply again if its amount and revision remained valid.",
+        "after": "`process_identified/2` looks up the operation before dispatching it. Existing records go to `replay/3`, which returns `record.result` when canonical JSON matches or `operation_id_conflict` otherwise. Only an unused identifier reaches the existing five operation handlers. Canonicalization sorts object keys recursively and retains array order.",
+        "verification": {
+          "status": "inspected",
+          "text": "Source and assertions for repeated payments, batch retries, object and array order, changed amounts, and changed JSON types were inspected. The earlier independent review reran the 154-test candidate suite successfully. No additional concurrent-request test was run."
+        },
+        "refs": {
+          "requirement": [
+            {
+              "m": 3,
+              "path": "docs/requests/03-durable-operations.md",
+              "start": 3,
+              "end": 19
+            }
+          ],
+          "before": [
+            {
+              "m": 2,
+              "path": "lib/group_stay/partner.ex",
+              "start": 24,
+              "end": 70
+            }
+          ],
+          "after": [
+            {
+              "m": 3,
+              "path": "lib/group_stay/partner.ex",
+              "start": 38,
+              "end": 66
+            },
+            {
+              "m": 3,
+              "path": "lib/group_stay/operations/payload.ex",
+              "start": 10,
+              "end": 29
+            },
+            {
+              "m": 3,
+              "path": "lib/group_stay/operations.ex",
+              "start": 42,
+              "end": 44
+            }
+          ],
+          "tests": [
+            {
+              "m": 3,
+              "path": "test/group_stay_web/controllers/idempotency_test.exs",
+              "start": 14,
+              "end": 72
+            },
+            {
+              "m": 3,
+              "path": "test/group_stay_web/controllers/idempotency_test.exs",
+              "start": 155,
+              "end": 185
+            },
+            {
+              "m": 3,
+              "path": "test/group_stay/operations/payload_test.exs",
+              "start": 6,
+              "end": 34
+            }
+          ]
+        },
+        "contract": [
+          {
+            "field": "`operation_id`",
+            "before": "Returned as the submitted identifier; no durable lookup before execution.",
+            "after": "Identifies the first stored submission and result."
+          },
+          {
+            "field": "Complete submitted JSON",
+            "before": "Parsed for domain fields on every attempt.",
+            "after": "Also compared with stored canonical JSON; adding a key or changing a value conflicts."
+          },
+          {
+            "field": "`operation_id_conflict`",
+            "before": "No conflict result for identifier reuse.",
+            "after": "Rejected result with the submitted identifier; original record remains unchanged."
+          }
+        ],
+        "implementationSteps": [
+          {
+            "module": "GroupStay.Partner",
+            "function": "process_identified/2 → replay/3",
+            "change": "Check the identifier before any domain dispatch.",
+            "ref": {
+              "m": 3,
+              "path": "lib/group_stay/partner.ex",
+              "start": 51,
+              "end": 66
+            }
+          },
+          {
+            "module": "GroupStay.Operations",
+            "function": "same_request?/2",
+            "change": "Compare the stored submission with canonical JSON for the new submission.",
+            "ref": {
+              "m": 3,
+              "path": "lib/group_stay/operations.ex",
+              "start": 42,
+              "end": 44
+            }
+          },
+          {
+            "module": "GroupStay.Operations.Payload",
+            "function": "canonical/1; encode/1",
+            "change": "Recursively sort object keys and encode other JSON values.",
+            "ref": {
+              "m": 3,
+              "path": "lib/group_stay/operations/payload.ex",
+              "start": 10,
+              "end": 29
+            }
+          }
+        ]
+      },
+      {
+        "id": "rejected-results-and-revisions",
+        "title": "Preserve rejected results and original revision details",
+        "target": "Batch operation results: `status`, `code`, `revision`, `expected_revision`, and `actual_revision`",
+        "required": "Remember handled rejections as well as applied results. Exact retries must preserve the original revision or stale-revision details even after domain state changes. Correcting `expected_revision` under the same `operation_id` is a conflicting payload.",
+        "before": "A repeated operation read the group again and checked its current revision. The existing credit test submitted the same identifier and payload twice and expected an applied result followed by `stale_revision`.",
+        "after": "Applied and rejected results are stored and returned directly on equivalent retries. A stored `group_not_found` remains that rejection after the group is created; a stored `actual_revision` is not refreshed. The credit revision test now gives its second attempt a new identifier so it still tests a fresh stale-revision rejection.",
+        "verification": {
+          "status": "inspected",
+          "text": "The stored-result path and tests for remembered rejections, applied revisions, stale revisions, and corrected-revision conflicts were inspected. The earlier independent review reran the 154-test candidate suite successfully. The changed credit revision test was compared with M2."
+        },
+        "refs": {
+          "requirement": [
+            {
+              "m": 3,
+              "path": "docs/requests/03-durable-operations.md",
+              "start": 16,
+              "end": 19
+            },
+            {
+              "m": 3,
+              "path": "docs/requests/03-durable-operations.md",
+              "start": 41,
+              "end": 45
+            }
+          ],
+          "before": [
+            {
+              "m": 2,
+              "path": "lib/group_stay/partner.ex",
+              "start": 326,
+              "end": 352
+            },
+            {
+              "m": 2,
+              "path": "test/group_stay_web/controllers/apply_hotel_credit_test.exs",
+              "start": 173,
+              "end": 185
+            }
+          ],
+          "after": [
+            {
+              "m": 3,
+              "path": "lib/group_stay/partner.ex",
+              "start": 51,
+              "end": 66
+            },
+            {
+              "m": 3,
+              "path": "lib/group_stay/partner.ex",
+              "start": 71,
+              "end": 99
+            },
+            {
+              "m": 3,
+              "path": "test/group_stay_web/controllers/apply_hotel_credit_test.exs",
+              "start": 179,
+              "end": 194
+            }
+          ],
+          "tests": [
+            {
+              "m": 3,
+              "path": "test/group_stay_web/controllers/idempotency_test.exs",
+              "start": 74,
+              "end": 93
+            },
+            {
+              "m": 3,
+              "path": "test/group_stay_web/controllers/idempotency_test.exs",
+              "start": 188,
+              "end": 231
+            }
+          ]
+        },
+        "contract": [
+          {
+            "field": "Rejected `result`",
+            "before": "Computed from current group state on each submission.",
+            "after": "Replayed from the durable record for an equivalent retry."
+          },
+          {
+            "field": "`revision` / `actual_revision`",
+            "before": "Reflects the group when the repeated submission is processed.",
+            "after": "An exact retry retains the original result’s values."
+          },
+          {
+            "field": "Corrected `expected_revision`",
+            "before": "Evaluated as another domain operation.",
+            "after": "Requires a fresh `operation_id`; otherwise returns `operation_id_conflict`."
+          }
+        ],
+        "implementationSteps": [
+          {
+            "module": "GroupStay.Partner",
+            "function": "replay/3",
+            "change": "Return the stored result before the group-existence and revision checks.",
+            "ref": {
+              "m": 3,
+              "path": "lib/group_stay/partner.ex",
+              "start": 51,
+              "end": 66
+            }
+          },
+          {
+            "module": "GroupStay.Partner",
+            "function": "execute/2",
+            "change": "Store the completed applied or rejected result, including its revision fields.",
+            "ref": {
+              "m": 3,
+              "path": "lib/group_stay/partner.ex",
+              "start": 71,
+              "end": 105
+            }
+          },
+          {
+            "module": "GroupStay.Partner",
+            "function": "with_group/2; check_revision/3",
+            "change": "Keep current-state revision checks for submissions whose identifiers are new.",
+            "ref": {
+              "m": 3,
+              "path": "lib/group_stay/partner.ex",
+              "start": 368,
+              "end": 396
+            }
+          }
+        ]
+      },
+      {
+        "id": "transaction-and-batch-failures",
+        "title": "Commit operation records with successful changes and preserve failure behavior",
+        "target": "`GroupStay.Partner.execute/2`, `operations.operation_id`, and batch continuation",
+        "required": "Commit successful domain changes and their operation record in one database transaction. Concurrent retries must have at-most-once effects. Handled rejections must leave domain state unchanged, commit their result, and allow later batch operations to run. Unexpected exceptions must roll back the current operation, remain unrecorded, and abort the HTTP request with `500`.",
+        "before": "`run/1` wrapped domain dispatch in a transaction. A handled rejection rolled back that transaction, and `process_batch/1` continued with the next operation. There was no durable operation record to commit or unique identifier constraint to arbitrate retries.",
+        "after": "A successful dispatch inserts its result before the transaction commits. An insertion error rolls back that attempt and rechecks the stored identifier. A handled rejection rolls back the domain transaction, then inserts its rejection record separately. Unexpected exceptions are not converted into remembered rejections. Operations without a usable identifier return `invalid_operation` without reaching the domain or operation table.",
+        "verification": {
+          "status": "inspected",
+          "text": "Transaction boundaries and uniqueness handling were inspected. The candidate fault test asserts HTTP 500, rollback of the faulting operation, no stored result, and no following payment. The earlier independent review reran the 154-test suite successfully. No additional concurrency or crash-interruption experiment was run."
+        },
+        "refs": {
+          "requirement": [
+            {
+              "m": 3,
+              "path": "docs/requests/03-durable-operations.md",
+              "start": 21,
+              "end": 28
+            }
+          ],
+          "before": [
+            {
+              "m": 2,
+              "path": "lib/group_stay/partner.ex",
+              "start": 24,
+              "end": 60
+            },
+            {
+              "m": 2,
+              "path": "docs/requests/01-operational-core.md",
+              "start": 71,
+              "end": 75
+            }
+          ],
+          "after": [
+            {
+              "m": 3,
+              "path": "lib/group_stay/partner.ex",
+              "start": 30,
+              "end": 48
+            },
+            {
+              "m": 3,
+              "path": "lib/group_stay/partner.ex",
+              "start": 68,
+              "end": 99
+            },
+            {
+              "m": 3,
+              "path": "priv/repo/migrations/20260301000000_create_operations.exs",
+              "start": 7,
+              "end": 16
+            },
+            {
+              "m": 3,
+              "path": "lib/group_stay/operations/record.ex",
+              "start": 30,
+              "end": 35
+            }
+          ],
+          "tests": [
+            {
+              "m": 3,
+              "path": "test/group_stay_web/controllers/idempotency_test.exs",
+              "start": 85,
+              "end": 105
+            },
+            {
+              "m": 3,
+              "path": "test/group_stay_web/controllers/idempotency_test.exs",
+              "start": 234,
+              "end": 275
+            },
+            {
+              "m": 3,
+              "path": "test/group_stay/operations_test.exs",
+              "start": 33,
+              "end": 46
+            }
+          ]
+        },
+        "contract": [
+          {
+            "field": "Successful operation",
+            "before": "Domain changes commit in a transaction.",
+            "after": "Domain changes and the new operation record commit in the same transaction."
+          },
+          {
+            "field": "Handled rejection",
+            "before": "Domain transaction rolls back; batch continues.",
+            "after": "Domain transaction rolls back; rejection record is inserted afterward; batch continues."
+          },
+          {
+            "field": "Unexpected exception",
+            "before": "No rescue in the domain transaction path.",
+            "after": "No remembered result; exception aborts the request and later batch operations do not run."
+          },
+          {
+            "field": "Missing or unusable `operation_id`",
+            "before": "Rejected by operation validation.",
+            "after": "Rejected before durable lookup; no operation record is created."
+          }
+        ],
+        "implementationSteps": [
+          {
+            "module": "GroupStay.Partner",
+            "function": "execute/2",
+            "change": "Insert successful results within the domain transaction; handle rejection records after rollback.",
+            "ref": {
+              "m": 3,
+              "path": "lib/group_stay/partner.ex",
+              "start": 71,
+              "end": 99
+            }
+          },
+          {
+            "module": "GroupStay.Operations.Record",
+            "function": "changeset/2",
+            "change": "Convert an operation-identifier uniqueness violation into an insert error.",
+            "ref": {
+              "m": 3,
+              "path": "lib/group_stay/operations/record.ex",
+              "start": 30,
+              "end": 35
+            }
+          },
+          {
+            "module": "GroupStay.Repo.Migrations.CreateOperations",
+            "function": "change/0",
+            "change": "Add the database unique index on operation identifiers.",
+            "ref": {
+              "m": 3,
+              "path": "priv/repo/migrations/20260301000000_create_operations.exs",
+              "start": 7,
+              "end": 16
+            }
+          },
+          {
+            "module": "GroupStay.Partner",
+            "function": "process_batch/1; process_operation/1",
+            "change": "Process submissions in order and reject unusable identifiers before dispatch.",
+            "ref": {
+              "m": 3,
+              "path": "lib/group_stay/partner.ex",
+              "start": 30,
+              "end": 48
+            }
+          }
+        ]
+      },
+      {
+        "id": "durable-audit-record",
+        "title": "Add the `operations` table for replay and submission auditing",
+        "target": "Database migration `20260301000000_create_operations.exs` and `GroupStay.Operations`",
+        "required": "Retain each remembered operation’s type, complete submitted content, exact result, and first-commit order. Records must survive application and database-process restarts. Earlier operations need no reconstruction because the gateway starts a new identifier namespace at deployment.",
+        "before": "The schema stored groups, rooms, credit lots, and credit redemptions. The batch handler returned operation results without storing complete submissions or results in an operation table.",
+        "after": "The migration adds `operations` with a unique `operation_id`, optional `type`, canonical `request_payload`, map-valued `result`, timestamps, and the generated primary key. `remember/3` inserts a record, `submitted_content/1` decodes its payload, and `in_commit_order/0` orders records by primary key. The migration creates an empty table and does not backfill earlier submissions.",
+        "verification": {
+          "status": "inspected",
+          "text": "The migration, database reads/writes, and audit-order assertions were inspected. The earlier independent review reran the 154-test candidate suite successfully. A historical evaluator restart check passed separately. No new process-restart experiment was run for this account."
+        },
+        "refs": {
+          "requirement": [
+            {
+              "m": 3,
+              "path": "docs/requests/03-durable-operations.md",
+              "start": 6,
+              "end": 8
+            },
+            {
+              "m": 3,
+              "path": "docs/requests/03-durable-operations.md",
+              "start": 30,
+              "end": 35
+            }
+          ],
+          "before": [
+            {
+              "m": 2,
+              "path": "lib/group_stay/partner.ex",
+              "start": 30,
+              "end": 60
+            },
+            {
+              "m": 2,
+              "path": "priv/repo/migrations/20260101000000_create_groups_and_rooms.exs",
+              "start": 4,
+              "end": 38
+            },
+            {
+              "m": 2,
+              "path": "priv/repo/migrations/20260201000000_add_cancellation_economics.exs",
+              "start": 29,
+              "end": 50
+            }
+          ],
+          "after": [
+            {
+              "m": 3,
+              "path": "priv/repo/migrations/20260301000000_create_operations.exs",
+              "start": 4,
+              "end": 17
+            },
+            {
+              "m": 3,
+              "path": "lib/group_stay/operations/record.ex",
+              "start": 16,
+              "end": 34
+            },
+            {
+              "m": 3,
+              "path": "lib/group_stay/operations.ex",
+              "start": 17,
+              "end": 50
+            }
+          ],
+          "tests": [
+            {
+              "m": 3,
+              "path": "test/group_stay_web/controllers/operation_audit_test.exs",
+              "start": 8,
+              "end": 61
+            },
+            {
+              "m": 3,
+              "path": "test/group_stay/operations_test.exs",
+              "start": 71,
+              "end": 95
+            }
+          ]
+        },
+        "contract": [
+          {
+            "field": "`operations.operation_id`",
+            "before": "No operation record table.",
+            "after": "Required string with a unique index."
+          },
+          {
+            "field": "`operations.type` / `request_payload`",
+            "before": "Complete submissions not retained by the batch handler.",
+            "after": "Retain submitted type when usable and complete canonical JSON, including rejected submissions."
+          },
+          {
+            "field": "`operations.result`",
+            "before": "Returned to the caller without durable storage.",
+            "after": "Stored map for subsequent replay and operation reads."
+          },
+          {
+            "field": "Commit order",
+            "before": "No durable operation-order query.",
+            "after": "`in_commit_order/0` sorts records by generated primary key."
+          },
+          {
+            "field": "Earlier-release operations",
+            "before": "No durable operation identities.",
+            "after": "No backfill; deployment requires the gateway’s new identifier namespace."
+          }
+        ],
+        "implementationSteps": [
+          {
+            "module": "GroupStay.Repo.Migrations.CreateOperations",
+            "function": "change/0",
+            "change": "Create the operations table and identifier uniqueness index without a backfill.",
+            "ref": {
+              "m": 3,
+              "path": "priv/repo/migrations/20260301000000_create_operations.exs",
+              "start": 4,
+              "end": 17
+            }
+          },
+          {
+            "module": "GroupStay.Operations.Record",
+            "function": "schema \"operations\"; changeset/2",
+            "change": "Map and validate fields retained for each operation.",
+            "ref": {
+              "m": 3,
+              "path": "lib/group_stay/operations/record.ex",
+              "start": 16,
+              "end": 35
+            }
+          },
+          {
+            "module": "GroupStay.Operations",
+            "function": "remember/3; submitted_content/1; in_commit_order/0",
+            "change": "Persist submission and result, decode submissions, and expose insertion-order reads.",
+            "ref": {
+              "m": 3,
+              "path": "lib/group_stay/operations.ex",
+              "start": 25,
+              "end": 50
+            }
+          }
+        ]
+      },
+      {
+        "id": "operation-read-endpoint",
+        "title": "Add `GET /api/v1/operations/:operation_id`",
+        "target": "`GroupStayWeb.Router`, `OperationController.show/2`, and `OperationJSON.show/1`",
+        "required": "Return the stored result as `{\"data\": <result>}` or `404` with `operation_not_found`. Do not expose retained submission content or commit order through this endpoint.",
+        "before": "The router exposed partner batches, group reads, guest-credit reads, and ledger reads. It had no operation-result route.",
+        "after": "The new route fetches the operation record and renders only `record.result` under `data`. Missing identifiers return `404` with `{\"error\":{\"code\":\"operation_not_found\"}}`. `docs/API.md` is byte-for-byte unchanged from milestone 2 and does not describe this endpoint; its contract is in request 03.",
+        "verification": {
+          "status": "inspected",
+          "text": "Route, controller, renderer, and response assertions were inspected. The earlier independent review reran the 154-test candidate suite successfully, including endpoint connection tests. The API document is unchanged by hash comparison. No additional endpoint experiment was run."
+        },
+        "refs": {
+          "requirement": [
+            {
+              "m": 3,
+              "path": "docs/requests/03-durable-operations.md",
+              "start": 37,
+              "end": 39
+            }
+          ],
+          "before": [
+            {
+              "m": 2,
+              "path": "lib/group_stay_web/router.ex",
+              "start": 8,
+              "end": 15
+            },
+            {
+              "m": 2,
+              "path": "docs/API.md",
+              "start": 81,
+              "end": 114
+            }
+          ],
+          "after": [
+            {
+              "m": 3,
+              "path": "lib/group_stay_web/router.ex",
+              "start": 8,
+              "end": 16
+            },
+            {
+              "m": 3,
+              "path": "lib/group_stay_web/controllers/operation_controller.ex",
+              "start": 6,
+              "end": 15
+            },
+            {
+              "m": 3,
+              "path": "lib/group_stay_web/controllers/operation_json.ex",
+              "start": 9,
+              "end": 11
+            },
+            {
+              "m": 3,
+              "path": "docs/API.md",
+              "start": 81,
+              "end": 114
+            }
+          ],
+          "tests": [
+            {
+              "m": 3,
+              "path": "test/group_stay_web/controllers/operation_read_test.exs",
+              "start": 6,
+              "end": 50
+            }
+          ]
+        },
+        "contract": [
+          {
+            "field": "`GET /api/v1/operations/:operation_id`",
+            "before": "No registered route.",
+            "after": "Lookup of a previously stored operation result."
+          },
+          {
+            "field": "Successful response",
+            "before": "Not available.",
+            "after": "`200` with `data` containing the stored applied or rejected result."
+          },
+          {
+            "field": "Unknown identifier",
+            "before": "No operation-result contract.",
+            "after": "`404` with `operation_not_found`."
+          },
+          {
+            "field": "Audit fields",
+            "before": "No operation audit API.",
+            "after": "`request_payload`, record `type`, primary key, and timestamps are not added to the public response."
+          },
+          {
+            "field": "`docs/API.md`",
+            "before": "Contains batch, group, and ledger contracts.",
+            "after": "Unchanged; readers need request 03 for operation lookup and retry rules."
+          }
+        ],
+        "implementationSteps": [
+          {
+            "module": "GroupStayWeb.Router",
+            "function": "scope \"/api/v1\"",
+            "change": "Route operation reads to the new controller.",
+            "ref": {
+              "m": 3,
+              "path": "lib/group_stay_web/router.ex",
+              "start": 8,
+              "end": 16
+            }
+          },
+          {
+            "module": "GroupStayWeb.OperationController",
+            "function": "show/2",
+            "change": "Fetch by identifier and return the stored record or a 404 error.",
+            "ref": {
+              "m": 3,
+              "path": "lib/group_stay_web/controllers/operation_controller.ex",
+              "start": 6,
+              "end": 15
+            }
+          },
+          {
+            "module": "GroupStayWeb.OperationJSON",
+            "function": "show/1",
+            "change": "Render only the stored result inside data.",
+            "ref": {
+              "m": 3,
+              "path": "lib/group_stay_web/controllers/operation_json.ex",
+              "start": 9,
+              "end": 11
+            }
+          },
+          {
+            "module": "GroupStay.Operations",
+            "function": "fetch/1",
+            "change": "Read a record from the database by operation identifier.",
+            "ref": {
+              "m": 3,
+              "path": "lib/group_stay/operations.ex",
+              "start": 17,
+              "end": 23
+            }
+          }
+        ]
+      }
+    ],
+    "modules": [
+      {
+        "path": "lib/group_stay_web/router.ex",
+        "role": "Maps HTTP paths to controllers.",
+        "before": "Four routes under `/api/v1`; no operation lookup.",
+        "after": "Adds `GET /api/v1/operations/:operation_id`; existing routes remain.",
+        "refs": [
+          {
+            "m": 2,
+            "path": "lib/group_stay_web/router.ex",
+            "start": 8,
+            "end": 15
+          },
+          {
+            "m": 3,
+            "path": "lib/group_stay_web/router.ex",
+            "start": 8,
+            "end": 16
+          }
+        ]
+      },
+      {
+        "path": "lib/group_stay_web/controllers/partner_batch_controller.ex",
+        "role": "Passes the batch request to `GroupStay.Partner` and renders its results.",
+        "before": "Calls `process_batch/1`; invalid batches return `422`.",
+        "after": "Unchanged. Retry behavior is introduced below this controller.",
+        "refs": [
+          {
+            "m": 2,
+            "path": "lib/group_stay_web/controllers/partner_batch_controller.ex",
+            "start": 4,
+            "end": 15
+          },
+          {
+            "m": 3,
+            "path": "lib/group_stay_web/controllers/partner_batch_controller.ex",
+            "start": 4,
+            "end": 15
+          }
+        ]
+      },
+      {
+        "path": "lib/group_stay/partner.ex",
+        "role": "Validates and applies the five supported reservation operations.",
+        "before": "Every identified submission reaches domain dispatch in a transaction.",
+        "after": "Adds durable lookup, replay, conflict handling, and result persistence around the existing domain dispatch.",
+        "refs": [
+          {
+            "m": 2,
+            "path": "lib/group_stay/partner.ex",
+            "start": 24,
+            "end": 70
+          },
+          {
+            "m": 3,
+            "path": "lib/group_stay/partner.ex",
+            "start": 30,
+            "end": 130
+          }
+        ]
+      },
+      {
+        "path": "lib/group_stay/reservations.ex",
+        "role": "Reads and changes reservation balances, rooms, and revisions.",
+        "before": "Contains the reservation domain implementation used by partner operations.",
+        "after": "Unchanged in milestone 3; its functions run only for a new identifier, inside the operation transaction.",
+        "refs": [
+          {
+            "m": 2,
+            "path": "lib/group_stay/reservations.ex",
+            "start": 1,
+            "end": 33
+          },
+          {
+            "m": 3,
+            "path": "lib/group_stay/reservations.ex",
+            "start": 1,
+            "end": 33
+          },
+          {
+            "m": 3,
+            "path": "lib/group_stay/partner.ex",
+            "start": 71,
+            "end": 85
+          }
+        ]
+      },
+      {
+        "path": "lib/group_stay/operations.ex",
+        "role": "Persists and reads submitted operations and their results.",
+        "before": "Module does not exist in milestone 2.",
+        "after": "Adds `fetch/1`, `remember/3`, payload comparison, submitted-content decoding, and record-order reads.",
+        "refs": [
+          {
+            "m": 3,
+            "path": "lib/group_stay/operations.ex",
+            "start": 17,
+            "end": 50
+          }
+        ]
+      },
+      {
+        "path": "lib/group_stay/operations/payload.ex",
+        "role": "Defines equality between decoded JSON submissions.",
+        "before": "No operation-payload canonicalizer.",
+        "after": "Adds recursive object-key sorting while retaining array order and encoded values.",
+        "refs": [
+          {
+            "m": 3,
+            "path": "lib/group_stay/operations/payload.ex",
+            "start": 10,
+            "end": 29
+          }
+        ]
+      },
+      {
+        "path": "lib/group_stay/operations/record.ex",
+        "role": "Maps the operation table into an Ecto record and validates inserts.",
+        "before": "Schema does not exist in milestone 2.",
+        "after": "Adds required identifier, submitted content, result, optional type, and uniqueness validation.",
+        "refs": [
+          {
+            "m": 3,
+            "path": "lib/group_stay/operations/record.ex",
+            "start": 16,
+            "end": 35
+          }
+        ]
+      },
+      {
+        "path": "priv/repo/migrations/20260301000000_create_operations.exs",
+        "role": "Introduces durable database storage.",
+        "before": "Earlier migrations define groups, rooms, credit lots, and redemptions.",
+        "after": "Creates `operations` and a unique identifier index; no historical backfill.",
+        "refs": [
+          {
+            "m": 2,
+            "path": "priv/repo/migrations/20260201000000_add_cancellation_economics.exs",
+            "start": 29,
+            "end": 50
+          },
+          {
+            "m": 3,
+            "path": "priv/repo/migrations/20260301000000_create_operations.exs",
+            "start": 4,
+            "end": 17
+          }
+        ]
+      },
+      {
+        "path": "lib/group_stay_web/controllers/operation_controller.ex",
+        "role": "Handles the new operation-result read request.",
+        "before": "Controller does not exist in milestone 2.",
+        "after": "Fetches the stored result or returns `404 operation_not_found`.",
+        "refs": [
+          {
+            "m": 3,
+            "path": "lib/group_stay_web/controllers/operation_controller.ex",
+            "start": 4,
+            "end": 15
+          }
+        ]
+      },
+      {
+        "path": "lib/group_stay_web/controllers/operation_json.ex",
+        "role": "Defines the JSON shape of operation-result reads.",
+        "before": "Renderer does not exist in milestone 2.",
+        "after": "Returns `data: record.result`; retained audit fields stay outside the response.",
+        "refs": [
+          {
+            "m": 3,
+            "path": "lib/group_stay_web/controllers/operation_json.ex",
+            "start": 3,
+            "end": 11
+          }
+        ]
+      },
+      {
+        "path": "docs/API.md",
+        "role": "Shared reference for public API behavior.",
+        "before": "Documents batches, revisions, groups, and ledger reads.",
+        "after": "Unchanged; durable retry rules and operation lookup appear only in request 03.",
+        "refs": [
+          {
+            "m": 2,
+            "path": "docs/API.md",
+            "start": 35,
+            "end": 79
+          },
+          {
+            "m": 3,
+            "path": "docs/API.md",
+            "start": 35,
+            "end": 79
+          },
+          {
+            "m": 3,
+            "path": "docs/requests/03-durable-operations.md",
+            "start": 10,
+            "end": 45
+          }
+        ]
+      }
+    ],
+    "baseFingerprint": "52a8f755f1b996a0b8fef125c1c438295aef8fed34e0ba594c6e75f780ad97be",
+    "headFingerprint": "7e06f2bb41e0452875dfc4847b18ff64287c73f58639b34f21aae37e578ec6fc"
+  },
+  "4": {
+    "id": 4,
+    "title": "Add room accounting and payment reductions",
+    "summary": "Add room-level funding allocations, selected-room cancellation, cash-payment reductions, chargebacks with credit clawback, and a payment-reconciliation endpoint. Migrate existing group funding into allocations while preserving durable operation results.",
+    "requestPath": "docs/requests/04-room-accounting-and-payment-reductions.md",
+    "changes": [
+      {
+        "id": "room-contract",
+        "title": "Expose room accounting in group responses",
+        "target": "`GET /api/v1/groups/:group_id`",
+        "required": "Add `rooms[].status`, `rooms[].deposit_due_cents`, `rooms[].cash_paid_cents`, and `rooms[].credit_paid_cents` to group responses. Group lodging, due, paid, and outstanding totals must sum active rooms only.",
+        "before": "Room responses contain only `room_id` and `nightly_rate_cents`. Group responses expose aggregate lodging/deposit/funding amounts; cancellation retains historical amounts.",
+        "after": "Room responses add the four required fields. Group totals are recomputed from active rooms while the group remains active. When it becomes cancelled, stored totals freeze; the attached cancellation finding documents that exception.",
+        "verification": {
+          "status": "inspected",
+          "text": "Source and cited candidate tests inspected. The complete candidate suite passed 233 tests in an isolated copy; no fresh targeted reproduction was added for this change unit."
+        },
+        "refs": {
+          "requirement": [
+            {
+              "m": 4,
+              "path": "docs/requests/04-room-accounting-and-payment-reductions.md",
+              "start": 8,
+              "end": 31
+            }
+          ],
+          "before": [
+            {
+              "m": 3,
+              "path": "lib/group_stay_web/controllers/group_json.ex",
+              "start": 20,
+              "end": 33
+            },
+            {
+              "m": 3,
+              "path": "lib/group_stay/reservations.ex",
+              "start": 152,
+              "end": 159
+            }
+          ],
+          "after": [
+            {
+              "m": 4,
+              "path": "lib/group_stay_web/controllers/group_json.ex",
+              "start": 20,
+              "end": 40
+            },
+            {
+              "m": 4,
+              "path": "lib/group_stay/funding.ex",
+              "start": 94,
+              "end": 140
+            },
+            {
+              "m": 4,
+              "path": "lib/group_stay/reservations.ex",
+              "start": 198,
+              "end": 213
+            }
+          ],
+          "tests": [
+            {
+              "m": 4,
+              "path": "test/group_stay_web/controllers/room_accounting_test.exs",
+              "start": 9,
+              "end": 64
+            }
+          ]
+        },
+        "contract": [
+          {
+            "field": "rooms[].status",
+            "before": "Absent",
+            "after": "`active` or `cancelled`"
+          },
+          {
+            "field": "rooms[].deposit_due_cents",
+            "before": "Absent",
+            "after": "Stored per-room `deposit_cents`"
+          },
+          {
+            "field": "rooms[].cash_paid_cents / credit_paid_cents",
+            "before": "Absent",
+            "after": "Funding attributed to the room; settled funding remains attributed, reduced/charged-back funding does not"
+          },
+          {
+            "field": "lodging_total_cents / deposit_due_cents / deposit_paid_cents",
+            "before": "Whole-group amounts, preserved after cancellation",
+            "after": "Active-room aggregates until final cancellation; then incorrectly preserved"
+          },
+          {
+            "field": "outstanding_deposit_cents",
+            "before": "Zero for cancelled group; otherwise due minus paid",
+            "after": "Same calculation; zero after final cancellation"
+          }
+        ],
+        "implementationSteps": [
+          {
+            "module": "lib/group_stay_web/controllers/group_json.ex",
+            "function": "room/1",
+            "change": "Expose room status and accounting fields.",
+            "ref": {
+              "m": 4,
+              "path": "lib/group_stay_web/controllers/group_json.ex",
+              "start": 31,
+              "end": 40
+            }
+          },
+          {
+            "module": "lib/group_stay/funding.ex",
+            "function": "with_room_funding/1",
+            "change": "Derive each room’s attributed cash and credit from allocation dispositions.",
+            "ref": {
+              "m": 4,
+              "path": "lib/group_stay/funding.ex",
+              "start": 121,
+              "end": 140
+            }
+          },
+          {
+            "module": "lib/group_stay/funding.ex",
+            "function": "group_totals/1",
+            "change": "Sum active-room lodging/deposit requirements and held funding.",
+            "ref": {
+              "m": 4,
+              "path": "lib/group_stay/funding.ex",
+              "start": 94,
+              "end": 119
+            }
+          },
+          {
+            "module": "lib/group_stay/reservations.ex",
+            "function": "update_group/2",
+            "change": "Recompute stored totals only when the resulting group status is active.",
+            "ref": {
+              "m": 4,
+              "path": "lib/group_stay/reservations.ex",
+              "start": 198,
+              "end": 213
+            }
+          }
+        ]
+      },
+      {
+        "id": "cancellation",
+        "title": "Cancel selected rooms and settle their funding",
+        "target": "`POST /api/v1/partner-batches: cancel_rooms and cancel_group`",
+        "required": "`cancel_rooms` accepts distinct active `room_ids`, applies existing cancellation rules to their allocations, and returns IDs in original room order. Calculate the credit bonus once over combined selected cash. `cancel_group` settles remaining active rooms. With none left, status is cancelled and active-room group totals must be zero.",
+        "before": "Only `cancel_group` exists; it settles aggregate group cash/credit. Its group response preserves historical totals.",
+        "after": "Both operations use room-level settlement. Invalid selections return `invalid_rooms`; selected rooms become cancelled and receive settlement accounting. Partial cancellation recomputes remaining totals. Final cancellation instead freezes previous totals: this is a reproduced requirement mismatch.",
+        "verification": {
+          "status": "reproduced",
+          "text": "P2 finding reproduced in isolated `reviewer_active_totals_test.exs`: open two rooms, pay 10,000 cents, cancel room A, then room B. Zero active rooms remain; group lodging=52,500, due=10,500, paid=1,000 cents; required active totals=0. Ledger held=0 and refunded=10,000. Original candidate suite: 233 passed. Reviewer test: 0/1 passed, exit 2. Source tests preserve old full-cancellation totals or omit final due/paid assertions. Full-cancellation path inspected, not separately reproduced."
+        },
+        "refs": {
+          "requirement": [
+            {
+              "m": 4,
+              "path": "docs/requests/04-room-accounting-and-payment-reductions.md",
+              "start": 31,
+              "end": 53
+            }
+          ],
+          "before": [
+            {
+              "m": 3,
+              "path": "lib/group_stay/partner.ex",
+              "start": 325,
+              "end": 344
+            },
+            {
+              "m": 3,
+              "path": "lib/group_stay/reservations.ex",
+              "start": 132,
+              "end": 159
+            }
+          ],
+          "after": [
+            {
+              "m": 4,
+              "path": "lib/group_stay/partner.ex",
+              "start": 336,
+              "end": 419
+            },
+            {
+              "m": 4,
+              "path": "lib/group_stay/reservations.ex",
+              "start": 148,
+              "end": 170
+            },
+            {
+              "m": 4,
+              "path": "lib/group_stay/reservations.ex",
+              "start": 198,
+              "end": 213
+            },
+            {
+              "m": 4,
+              "path": "lib/group_stay/funding.ex",
+              "start": 175,
+              "end": 235
+            }
+          ],
+          "tests": [
+            {
+              "m": 4,
+              "path": "test/group_stay_web/controllers/cancel_rooms_test.exs",
+              "start": 18,
+              "end": 85
+            },
+            {
+              "m": 4,
+              "path": "test/group_stay_web/controllers/cancel_rooms_test.exs",
+              "start": 88,
+              "end": 112
+            },
+            {
+              "m": 4,
+              "path": "test/group_stay_web/controllers/cancel_group_test.exs",
+              "start": 7,
+              "end": 32
+            }
+          ]
+        },
+        "contract": [
+          {
+            "field": "type: cancel_rooms",
+            "before": "Unsupported",
+            "after": "New operation with `group_id`, `room_ids`, optional `refund_method` and `expected_revision`; common `operation_id` and `occurred_on` remain required"
+          },
+          {
+            "field": "cancel_rooms applied result",
+            "before": "Absent",
+            "after": "`group_id`, `cancelled_room_ids`, `refunded_cents`, `retained_cents`, `credit_issued_cents`, `revision`, plus common `operation_id`/`status`"
+          },
+          {
+            "field": "invalid_rooms",
+            "before": "Used for invalid room data when opening a group",
+            "after": "Also rejects empty, duplicate, missing, or inactive cancellation room selections"
+          },
+          {
+            "field": "cancel_group",
+            "before": "Settles whole-group balances",
+            "after": "Settles remaining active rooms through the same room-allocation path"
+          },
+          {
+            "field": "Final cancellation totals",
+            "before": "Historical lodging/due/paid remain",
+            "after": "Still historical, contrary to current active-only requirement; observed due 10,500 and paid 1,000 cents with zero active rooms"
+          }
+        ],
+        "implementationSteps": [
+          {
+            "module": "lib/group_stay/partner.ex",
+            "function": "cancel_rooms_operation/3 and select_rooms/2",
+            "change": "Resolve group/revision and refund policy, validate the complete selection, preserve original room order.",
+            "ref": {
+              "m": 4,
+              "path": "lib/group_stay/partner.ex",
+              "start": 356,
+              "end": 419
+            }
+          },
+          {
+            "module": "lib/group_stay/funding.ex",
+            "function": "settle_rooms/3",
+            "change": "Settle only held allocations on selected rooms, restore/consume credit, and compute combined cash settlement.",
+            "ref": {
+              "m": 4,
+              "path": "lib/group_stay/funding.ex",
+              "start": 175,
+              "end": 235
+            }
+          },
+          {
+            "module": "lib/group_stay/reservations.ex",
+            "function": "cancel_rooms/5",
+            "change": "Mark selected rooms cancelled, derive group status, and advance group revision.",
+            "ref": {
+              "m": 4,
+              "path": "lib/group_stay/reservations.ex",
+              "start": 148,
+              "end": 170
+            }
+          },
+          {
+            "module": "lib/group_stay/reservations.ex",
+            "function": "update_group/2",
+            "change": "Skip active-room aggregation when resulting status is cancelled; causes stale totals.",
+            "ref": {
+              "m": 4,
+              "path": "lib/group_stay/reservations.ex",
+              "start": 198,
+              "end": 213
+            }
+          }
+        ]
+      },
+      {
+        "id": "allocation-reduction",
+        "title": "Allocate funding by room and reduce a recorded payment",
+        "target": "`POST /api/v1/partner-batches: record_cash_payment, apply_hotel_credit, reduce_cash_payment`",
+        "required": "Allocate funding to active room deposits in original room order and operation-processing order. `reduce_cash_payment` targets a durably recorded applied cash payment and removes only its held cash in reverse fill order. Reopen outstanding deposit, track reduced cash, preserve the original result, and apply durable retry/revision rules.",
+        "before": "Cash payments increment group cash totals; credit redemptions attach to groups and lots. No room/payment allocation identity or reduction operation exists.",
+        "after": "New `room_allocations` rows retain room, source operation/lot, amount, and disposition. Funding fills active room capacities. Reduction resolves the original payment’s group, checks revision and held cash, then reclassifies selected held allocations as reduced from last-filled to first.",
+        "verification": {
+          "status": "inspected",
+          "text": "Source and cited candidate tests inspected. The complete candidate suite passed 233 tests in an isolated copy; no fresh targeted reproduction was added for this change unit."
+        },
+        "refs": {
+          "requirement": [
+            {
+              "m": 4,
+              "path": "docs/requests/04-room-accounting-and-payment-reductions.md",
+              "start": 13,
+              "end": 14
+            },
+            {
+              "m": 4,
+              "path": "docs/requests/04-room-accounting-and-payment-reductions.md",
+              "start": 55,
+              "end": 87
+            }
+          ],
+          "before": [
+            {
+              "m": 3,
+              "path": "lib/group_stay/reservations.ex",
+              "start": 96,
+              "end": 111
+            },
+            {
+              "m": 3,
+              "path": "lib/group_stay/credit.ex",
+              "start": 59,
+              "end": 81
+            },
+            {
+              "m": 3,
+              "path": "lib/group_stay/partner.ex",
+              "start": 21,
+              "end": 22
+            }
+          ],
+          "after": [
+            {
+              "m": 4,
+              "path": "lib/group_stay/funding.ex",
+              "start": 32,
+              "end": 69
+            },
+            {
+              "m": 4,
+              "path": "lib/group_stay/funding.ex",
+              "start": 254,
+              "end": 297
+            },
+            {
+              "m": 4,
+              "path": "lib/group_stay/partner.ex",
+              "start": 423,
+              "end": 443
+            },
+            {
+              "m": 4,
+              "path": "lib/group_stay/partner.ex",
+              "start": 467,
+              "end": 524
+            },
+            {
+              "m": 4,
+              "path": "lib/group_stay/ledger.ex",
+              "start": 19,
+              "end": 30
+            }
+          ],
+          "tests": [
+            {
+              "m": 4,
+              "path": "test/group_stay_web/controllers/reduce_cash_payment_test.exs",
+              "start": 14,
+              "end": 63
+            },
+            {
+              "m": 4,
+              "path": "test/group_stay_web/controllers/reduce_cash_payment_test.exs",
+              "start": 81,
+              "end": 106
+            },
+            {
+              "m": 4,
+              "path": "test/group_stay_web/controllers/reduce_cash_payment_test.exs",
+              "start": 108,
+              "end": 170
+            }
+          ]
+        },
+        "contract": [
+          {
+            "field": "reduce_cash_payment input",
+            "before": "Unsupported",
+            "after": "`payment_operation_id`, positive `amount_cents`, optional `expected_revision`, common `operation_id`/`occurred_on`"
+          },
+          {
+            "field": "reduce_cash_payment result",
+            "before": "Absent",
+            "after": "`payment_operation_id`, derived `group_id`, `amount_cents`, `outstanding_deposit_cents`, `revision`, common `operation_id`/`status`"
+          },
+          {
+            "field": "Reduction rejections",
+            "before": "Absent",
+            "after": "`operation_not_found`, `payment_not_reducible`, `invalid_amount`, `reduction_exceeds_held_cash`; stale revision uses existing `stale_revision`"
+          },
+          {
+            "field": "GET /api/v1/ledger: cash_reduced_cents",
+            "before": "Absent",
+            "after": "Cumulative cash allocation amount classified as `reduced`"
+          },
+          {
+            "field": "Original payment result",
+            "before": "Durably retained",
+            "after": "Unchanged by reduction; retries replay it"
+          }
+        ],
+        "implementationSteps": [
+          {
+            "module": "lib/group_stay/reservations.ex",
+            "function": "record_cash_payment/3 and apply_hotel_credit/4",
+            "change": "Pass funding operation identity into allocation creation, then update group totals.",
+            "ref": {
+              "m": 4,
+              "path": "lib/group_stay/reservations.ex",
+              "start": 108,
+              "end": 126
+            }
+          },
+          {
+            "module": "lib/group_stay/funding.ex",
+            "function": "allocate/4",
+            "change": "Fill active-room remaining capacities and persist each room/source slice.",
+            "ref": {
+              "m": 4,
+              "path": "lib/group_stay/funding.ex",
+              "start": 51,
+              "end": 69
+            }
+          },
+          {
+            "module": "lib/group_stay/partner.ex",
+            "function": "with_payment/3",
+            "change": "Resolve stored applied payment and check the original group’s revision.",
+            "ref": {
+              "m": 4,
+              "path": "lib/group_stay/partner.ex",
+              "start": 501,
+              "end": 523
+            }
+          },
+          {
+            "module": "lib/group_stay/funding.ex",
+            "function": "reduce_cash/2 and detach/3",
+            "change": "Reverse held allocation order and split/reclassify only the reduced portion.",
+            "ref": {
+              "m": 4,
+              "path": "lib/group_stay/funding.ex",
+              "start": 267,
+              "end": 297
+            }
+          },
+          {
+            "module": "lib/group_stay/ledger.ex",
+            "function": "totals/1",
+            "change": "Report reduced cash from allocation dispositions.",
+            "ref": {
+              "m": 4,
+              "path": "lib/group_stay/ledger.ex",
+              "start": 19,
+              "end": 30
+            }
+          }
+        ]
+      },
+      {
+        "id": "chargeback",
+        "title": "Charge back payments and revoke resulting credit",
+        "target": "`POST /api/v1/partner-batches: charge_back_payment; GET /api/v1/ledger`",
+        "required": "Reverse a durably applied payment’s held/refunded/retained/converted cash, excluding reduced cash. Revoke converted-credit entitlement using cumulative half-up bonus amounts by funding order. Remove lot balance first; unrecovered clawback produces shortfall capped by credit still funding active groups. Absorb returning credit before availability/expiry. Only the original group’s revision changes.",
+        "before": "No chargeback operation or unrecovered-clawback state. Credit restoration adds redeemed amounts back to lots; liability sums available credit and group redemptions.",
+        "after": "The new operation resolves the applied payment, rejects absent/unchargeable targets, reclassifies its remaining cash allocations, and claws back entitlements per issued lot. `Credit.restore/2` first absorbs unrecovered clawback. Liability counts available plus held credit, and shortfall sums each lot’s minimum of unrecovered clawback and held credit.",
+        "verification": {
+          "status": "inspected",
+          "text": "Source and cited candidate tests inspected. The complete candidate suite passed 233 tests in an isolated copy; no fresh targeted reproduction was added for this change unit."
+        },
+        "refs": {
+          "requirement": [
+            {
+              "m": 4,
+              "path": "docs/requests/04-room-accounting-and-payment-reductions.md",
+              "start": 89,
+              "end": 137
+            }
+          ],
+          "before": [
+            {
+              "m": 3,
+              "path": "lib/group_stay/partner.ex",
+              "start": 21,
+              "end": 22
+            },
+            {
+              "m": 3,
+              "path": "lib/group_stay/credit.ex",
+              "start": 84,
+              "end": 123
+            }
+          ],
+          "after": [
+            {
+              "m": 4,
+              "path": "lib/group_stay/partner.ex",
+              "start": 446,
+              "end": 465
+            },
+            {
+              "m": 4,
+              "path": "lib/group_stay/funding.ex",
+              "start": 307,
+              "end": 358
+            },
+            {
+              "m": 4,
+              "path": "lib/group_stay/credit.ex",
+              "start": 89,
+              "end": 118
+            },
+            {
+              "m": 4,
+              "path": "lib/group_stay/credit.ex",
+              "start": 128,
+              "end": 169
+            },
+            {
+              "m": 4,
+              "path": "lib/group_stay/reservations.ex",
+              "start": 190,
+              "end": 195
+            }
+          ],
+          "tests": [
+            {
+              "m": 4,
+              "path": "test/group_stay_web/controllers/charge_back_payment_test.exs",
+              "start": 17,
+              "end": 72
+            },
+            {
+              "m": 4,
+              "path": "test/group_stay_web/controllers/charge_back_payment_test.exs",
+              "start": 153,
+              "end": 225
+            },
+            {
+              "m": 4,
+              "path": "test/group_stay_web/controllers/charge_back_payment_test.exs",
+              "start": 275,
+              "end": 290
+            }
+          ]
+        },
+        "contract": [
+          {
+            "field": "charge_back_payment input",
+            "before": "Unsupported",
+            "after": "`payment_operation_id`, optional `expected_revision`, common `operation_id`/`occurred_on`"
+          },
+          {
+            "field": "charge_back_payment result",
+            "before": "Absent",
+            "after": "`payment_operation_id`, derived `group_id`, `charged_back_cents`, `outstanding_deposit_cents`, `revision`, common `operation_id`/`status`"
+          },
+          {
+            "field": "Chargeback rejections",
+            "before": "Absent",
+            "after": "`operation_not_found` for absent record; `payment_not_chargeable` for non-applied-payment, fully reduced, or already charged-back target"
+          },
+          {
+            "field": "credit_lots.unrecovered_clawback_cents",
+            "before": "Absent",
+            "after": "Persisted entitlement not recovered from remaining lot balance"
+          },
+          {
+            "field": "Ledger cash_charged_back_cents / credit_shortfall_cents",
+            "before": "Absent",
+            "after": "Cumulative reclassified cash / current sum of capped lot shortfalls"
+          },
+          {
+            "field": "credit_liability_cents",
+            "before": "Available credit plus credit on active groups",
+            "after": "Available credit plus held room credit, including amounts covered by shortfall"
+          },
+          {
+            "field": "Other groups funded by affected credit",
+            "before": "No chargeback behavior",
+            "after": "Their stored state/revision is not updated by chargeback; only original payment group advances"
+          }
+        ],
+        "implementationSteps": [
+          {
+            "module": "lib/group_stay/partner.ex",
+            "function": "charge_back_payment_operation/1",
+            "change": "Resolve payment/group revision and require a positive chargeable amount.",
+            "ref": {
+              "m": 4,
+              "path": "lib/group_stay/partner.ex",
+              "start": 446,
+              "end": 482
+            }
+          },
+          {
+            "module": "lib/group_stay/funding.ex",
+            "function": "charge_back/1 and entitlement_cents/2",
+            "change": "Claw back each issued lot’s payment entitlement and reclassify remaining cash rows.",
+            "ref": {
+              "m": 4,
+              "path": "lib/group_stay/funding.ex",
+              "start": 307,
+              "end": 358
+            }
+          },
+          {
+            "module": "lib/group_stay/credit.ex",
+            "function": "claw_back/2 and restore/2",
+            "change": "Track unrecovered clawback and absorb it before restored credit becomes available.",
+            "ref": {
+              "m": 4,
+              "path": "lib/group_stay/credit.ex",
+              "start": 89,
+              "end": 118
+            }
+          },
+          {
+            "module": "lib/group_stay/credit.ex",
+            "function": "liability_cents/1 and shortfall_cents/0",
+            "change": "Compute liability from held credit and cap current shortfalls per lot.",
+            "ref": {
+              "m": 4,
+              "path": "lib/group_stay/credit.ex",
+              "start": 128,
+              "end": 169
+            }
+          },
+          {
+            "module": "lib/group_stay/reservations.ex",
+            "function": "charge_back_payment/2",
+            "change": "Update only the original payment group and advance its revision.",
+            "ref": {
+              "m": 4,
+              "path": "lib/group_stay/reservations.ex",
+              "start": 190,
+              "end": 195
+            }
+          }
+        ]
+      },
+      {
+        "id": "payment-statement",
+        "title": "Read the current disposition of one payment",
+        "target": "`GET /api/v1/payments/:payment_operation_id`",
+        "required": "Return exactly the identifiers, recorded amount, and six current cash dispositions for a durably applied cash payment. All seven monetary fields must be present and dispositions sum to recorded cash. Reads must not change state. Return 404 for missing durable record and 422 for a record that is not an applied cash payment.",
+        "before": "Only group, guest-credit, operation-result, and ledger reads exist. The operation endpoint replays an original result, not a current payment statement.",
+        "after": "A new route/controller resolves the retained operation type/result, groups payment allocations by disposition, and renders all statement fields with zero defaults. The read path contains no writes.",
+        "verification": {
+          "status": "inspected",
+          "text": "Source and cited candidate tests inspected. The complete candidate suite passed 233 tests in an isolated copy; no fresh targeted reproduction was added for this change unit."
+        },
+        "refs": {
+          "requirement": [
+            {
+              "m": 4,
+              "path": "docs/requests/04-room-accounting-and-payment-reductions.md",
+              "start": 139,
+              "end": 168
+            }
+          ],
+          "before": [
+            {
+              "m": 3,
+              "path": "lib/group_stay_web/router.ex",
+              "start": 11,
+              "end": 15
+            },
+            {
+              "m": 3,
+              "path": "lib/group_stay_web/controllers/operation_json.ex",
+              "start": 9,
+              "end": 11
+            }
+          ],
+          "after": [
+            {
+              "m": 4,
+              "path": "lib/group_stay_web/router.ex",
+              "start": 11,
+              "end": 16
+            },
+            {
+              "m": 4,
+              "path": "lib/group_stay_web/controllers/payment_controller.ex",
+              "start": 6,
+              "end": 24
+            },
+            {
+              "m": 4,
+              "path": "lib/group_stay/payments.ex",
+              "start": 23,
+              "end": 49
+            },
+            {
+              "m": 4,
+              "path": "lib/group_stay/payments.ex",
+              "start": 73,
+              "end": 89
+            }
+          ],
+          "tests": [
+            {
+              "m": 4,
+              "path": "test/group_stay_web/controllers/payment_read_test.exs",
+              "start": 9,
+              "end": 26
+            },
+            {
+              "m": 4,
+              "path": "test/group_stay_web/controllers/payment_read_test.exs",
+              "start": 61,
+              "end": 84
+            },
+            {
+              "m": 4,
+              "path": "test/group_stay_web/controllers/payment_read_test.exs",
+              "start": 86,
+              "end": 116
+            }
+          ]
+        },
+        "contract": [
+          {
+            "field": "GET /api/v1/payments/:payment_operation_id",
+            "before": "Absent",
+            "after": "Returns `{data: statement}` for applied cash payment"
+          },
+          {
+            "field": "payment_operation_id / original_group_id",
+            "before": "Absent from payment read",
+            "after": "Target identifier and original payment group"
+          },
+          {
+            "field": "recorded_cents",
+            "before": "Absent from payment read",
+            "after": "Original payment amount from stored result"
+          },
+          {
+            "field": "held_cents / refunded_cents / retained_cents / converted_to_credit_cents / reduced_cents / charged_back_cents",
+            "before": "Absent from payment read",
+            "after": "Current allocation dispositions; missing categories rendered as zero"
+          },
+          {
+            "field": "Missing / unusable target",
+            "before": "No endpoint",
+            "after": "404 `operation_not_found` / 422 `payment_not_reconcilable`"
+          }
+        ],
+        "implementationSteps": [
+          {
+            "module": "lib/group_stay_web/controllers/payment_controller.ex",
+            "function": "show/2",
+            "change": "Resolve target and choose statement, 404, or 422 response.",
+            "ref": {
+              "m": 4,
+              "path": "lib/group_stay_web/controllers/payment_controller.ex",
+              "start": 6,
+              "end": 24
+            }
+          },
+          {
+            "module": "lib/group_stay/payments.ex",
+            "function": "fetch_target/1 and target/1",
+            "change": "Require retained type `record_cash_payment` and applied result; recover original group/amount.",
+            "ref": {
+              "m": 4,
+              "path": "lib/group_stay/payments.ex",
+              "start": 23,
+              "end": 49
+            }
+          },
+          {
+            "module": "lib/group_stay/funding.ex",
+            "function": "cash_by_disposition/1",
+            "change": "Read allocation sums by payment operation and disposition.",
+            "ref": {
+              "m": 4,
+              "path": "lib/group_stay/funding.ex",
+              "start": 144,
+              "end": 153
+            }
+          },
+          {
+            "module": "lib/group_stay/payments.ex",
+            "function": "statement/1",
+            "change": "Return exact identifiers and seven monetary fields, with zero defaults.",
+            "ref": {
+              "m": 4,
+              "path": "lib/group_stay/payments.ex",
+              "start": 73,
+              "end": 89
+            }
+          }
+        ]
+      },
+      {
+        "id": "migration",
+        "title": "Migrate existing funding to room allocations",
+        "target": "`Ecto migration 20260401000000_add_room_accounting`",
+        "required": "Allocate funding predating durable records first as one unattributed senior block per group: cash before credit lots in consumption order. Allocate applied recorded funding afterward in durable commit order using retained operation type. Do not change aggregate cash, credit, or liability balances.",
+        "before": "Cash settlement totals live on groups; credit redemptions link lots to groups. Room deposits already exist, but rooms have no status and there are no allocation rows.",
+        "after": "The migration adds room status, lot unrecovered-clawback state, and `room_allocations`; marks rooms in cancelled groups; reconstructs allocations from group totals, durable records, and credit redemptions; then removes superseded group settlement columns and the `credit_redemptions` table. Legacy allocation source IDs remain null.",
+        "verification": {
+          "status": "inspected",
+          "text": "Migration source and allocation-planning tests inspected. The full candidate suite passed 233 tests in an isolated copy. No additional reviewer-authored populated-upgrade or aggregate-balance preservation test was executed."
+        },
+        "refs": {
+          "requirement": [
+            {
+              "m": 4,
+              "path": "docs/requests/04-room-accounting-and-payment-reductions.md",
+              "start": 16,
+              "end": 22
+            },
+            {
+              "m": 4,
+              "path": "docs/requests/04-room-accounting-and-payment-reductions.md",
+              "start": 78,
+              "end": 79
+            }
+          ],
+          "before": [
+            {
+              "m": 3,
+              "path": "lib/group_stay/reservations.ex",
+              "start": 96,
+              "end": 111
+            },
+            {
+              "m": 3,
+              "path": "lib/group_stay/credit.ex",
+              "start": 71,
+              "end": 81
+            },
+            {
+              "m": 3,
+              "path": "lib/group_stay/ledger.ex",
+              "start": 19,
+              "end": 37
+            }
+          ],
+          "after": [
+            {
+              "m": 4,
+              "path": "priv/repo/migrations/20260401000000_add_room_accounting.exs",
+              "start": 21,
+              "end": 64
+            },
+            {
+              "m": 4,
+              "path": "priv/repo/migrations/20260401000000_add_room_accounting.exs",
+              "start": 125,
+              "end": 188
+            },
+            {
+              "m": 4,
+              "path": "priv/repo/migrations/20260401000000_add_room_accounting.exs",
+              "start": 243,
+              "end": 281
+            },
+            {
+              "m": 4,
+              "path": "lib/group_stay/funding/plan.ex",
+              "start": 32,
+              "end": 62
+            }
+          ],
+          "tests": [
+            {
+              "m": 4,
+              "path": "test/group_stay/funding/plan_test.exs",
+              "start": 29,
+              "end": 78
+            }
+          ]
+        },
+        "contract": [
+          {
+            "field": "rooms.status",
+            "before": "Absent",
+            "after": "Added with default `active`; existing cancelled groups’ rooms changed to `cancelled`"
+          },
+          {
+            "field": "room_allocations",
+            "before": "Absent",
+            "after": "New table: `group_ref`, `room_ref`, `kind`, nullable `operation_id`, `lot_ref`, `issued_lot_ref`, `amount_cents`, `disposition`, timestamps"
+          },
+          {
+            "field": "credit_redemptions",
+            "before": "Group-to-lot credit accounting table",
+            "after": "Data folded into room allocations; old table dropped"
+          },
+          {
+            "field": "groups.cash_refunded_cents / cash_retained_cents / cash_converted_to_credit_cents",
+            "before": "Persisted group settlement columns",
+            "after": "Removed after allocation reconstruction; ledger aggregates allocations"
+          },
+          {
+            "field": "Legacy payment identity",
+            "before": "Funding may predate durable operation records",
+            "after": "Unattributed allocations retain null `operation_id`; cannot be targeted by payment APIs"
+          }
+        ],
+        "implementationSteps": [
+          {
+            "module": "priv/repo/migrations/20260401000000_add_room_accounting.exs",
+            "function": "up/0",
+            "change": "Add new schema, mark cancelled rooms, carry funding forward, and drop superseded accounting storage.",
+            "ref": {
+              "m": 4,
+              "path": "priv/repo/migrations/20260401000000_add_room_accounting.exs",
+              "start": 21,
+              "end": 64
+            }
+          },
+          {
+            "module": "priv/repo/migrations/20260401000000_add_room_accounting.exs",
+            "function": "funding_records/0",
+            "change": "Select retained cash/credit types, filter applied results, preserve ascending durable record IDs.",
+            "ref": {
+              "m": 4,
+              "path": "priv/repo/migrations/20260401000000_add_room_accounting.exs",
+              "start": 253,
+              "end": 281
+            }
+          },
+          {
+            "module": "lib/group_stay/funding/plan.ex",
+            "function": "carry_forward/4",
+            "change": "Place unrecorded cash and credit before recorded events.",
+            "ref": {
+              "m": 4,
+              "path": "lib/group_stay/funding/plan.ex",
+              "start": 32,
+              "end": 62
+            }
+          },
+          {
+            "module": "priv/repo/migrations/20260401000000_add_room_accounting.exs",
+            "function": "allocate/4 and insert_allocation/6",
+            "change": "Fill room capacities and insert source/disposition rows for reconstructed events.",
+            "ref": {
+              "m": 4,
+              "path": "priv/repo/migrations/20260401000000_add_room_accounting.exs",
+              "start": 135,
+              "end": 188
+            }
+          }
+        ]
+      }
+    ],
+    "modules": [
+      {
+        "path": "lib/group_stay/partner.ex",
+        "role": "Batch dispatch, validation, revisions, and durable operation handling",
+        "before": "Five operation types; payments/cancellation operate at group level.",
+        "after": "Adds `cancel_rooms`, `reduce_cash_payment`, `charge_back_payment`; resolves payment-addressed groups before revision checks.",
+        "refs": [
+          {
+            "m": 4,
+            "path": "lib/group_stay/partner.ex",
+            "start": 24,
+            "end": 25
+          },
+          {
+            "m": 4,
+            "path": "lib/group_stay/partner.ex",
+            "start": 336,
+            "end": 419
+          },
+          {
+            "m": 4,
+            "path": "lib/group_stay/partner.ex",
+            "start": 423,
+            "end": 523
+          }
+        ]
+      },
+      {
+        "path": "lib/group_stay/reservations.ex",
+        "role": "Reservation mutations and stored group totals",
+        "before": "Mutates group cash/credit and performs full-group settlement.",
+        "after": "Delegates funding mutations to room allocations; partial cancellation and payment corrections update group revision. Cancelled totals are incorrectly preserved.",
+        "refs": [
+          {
+            "m": 4,
+            "path": "lib/group_stay/reservations.ex",
+            "start": 108,
+            "end": 126
+          },
+          {
+            "m": 4,
+            "path": "lib/group_stay/reservations.ex",
+            "start": 148,
+            "end": 213
+          }
+        ]
+      },
+      {
+        "path": "lib/group_stay/funding.ex",
+        "role": "Allocation creation, disposition changes, and accounting queries",
+        "before": "Module absent.",
+        "after": "New room/source allocation layer shared by funding, cancellation, correction, statements, and ledger.",
+        "refs": [
+          {
+            "m": 4,
+            "path": "lib/group_stay/funding.ex",
+            "start": 32,
+            "end": 69
+          },
+          {
+            "m": 4,
+            "path": "lib/group_stay/funding.ex",
+            "start": 144,
+            "end": 164
+          },
+          {
+            "m": 4,
+            "path": "lib/group_stay/funding.ex",
+            "start": 175,
+            "end": 235
+          },
+          {
+            "m": 4,
+            "path": "lib/group_stay/funding.ex",
+            "start": 267,
+            "end": 358
+          }
+        ]
+      },
+      {
+        "path": "lib/group_stay/funding/allocation.ex",
+        "role": "Persistent allocation schema",
+        "before": "Schema absent.",
+        "after": "Defines room/source references, cash/credit kind, amount, and held/settled/reduced/charged-back dispositions.",
+        "refs": [
+          {
+            "m": 4,
+            "path": "lib/group_stay/funding/allocation.ex",
+            "start": 21,
+            "end": 64
+          }
+        ]
+      },
+      {
+        "path": "lib/group_stay/funding/plan.ex",
+        "role": "Pure allocation arithmetic",
+        "before": "Module absent.",
+        "after": "Implements ordered capacity filling and ordering of legacy/recorded funding.",
+        "refs": [
+          {
+            "m": 4,
+            "path": "lib/group_stay/funding/plan.ex",
+            "start": 18,
+            "end": 62
+          }
+        ]
+      },
+      {
+        "path": "lib/group_stay/credit.ex",
+        "role": "Credit lot balances, restoration, liability, shortfall",
+        "before": "Group credit redemptions and restoration without clawback.",
+        "after": "Reserves lot slices for room allocation; absorbs clawback on restoration and computes capped lot shortfall.",
+        "refs": [
+          {
+            "m": 4,
+            "path": "lib/group_stay/credit.ex",
+            "start": 64,
+            "end": 118
+          },
+          {
+            "m": 4,
+            "path": "lib/group_stay/credit.ex",
+            "start": 128,
+            "end": 169
+          }
+        ]
+      },
+      {
+        "path": "lib/group_stay/ledger.ex",
+        "role": "GET ledger totals",
+        "before": "Sums group-held cash and group settlement columns.",
+        "after": "Sums allocation dispositions; adds reduced cash, charged-back cash, and credit shortfall.",
+        "refs": [
+          {
+            "m": 4,
+            "path": "lib/group_stay/ledger.ex",
+            "start": 19,
+            "end": 30
+          }
+        ]
+      },
+      {
+        "path": "lib/group_stay/payments.ex",
+        "role": "Resolve applied payments and assemble statements",
+        "before": "Module absent.",
+        "after": "Reads durable operation type/result; calculates reducible/chargeable cash and current statement.",
+        "refs": [
+          {
+            "m": 4,
+            "path": "lib/group_stay/payments.ex",
+            "start": 23,
+            "end": 89
+          }
+        ]
+      },
+      {
+        "path": "lib/group_stay_web/controllers/group_json.ex",
+        "role": "Group response serialization",
+        "before": "Rooms expose ID and nightly rate only.",
+        "after": "Adds room status, due, cash, and credit; group fields still read stored totals.",
+        "refs": [
+          {
+            "m": 4,
+            "path": "lib/group_stay_web/controllers/group_json.ex",
+            "start": 20,
+            "end": 40
+          }
+        ]
+      },
+      {
+        "path": "lib/group_stay_web/controllers/payment_controller.ex",
+        "role": "New payment read endpoint",
+        "before": "Controller absent.",
+        "after": "Maps target resolution to statement, 404 missing record, or 422 non-payment.",
+        "refs": [
+          {
+            "m": 4,
+            "path": "lib/group_stay_web/controllers/payment_controller.ex",
+            "start": 6,
+            "end": 24
+          }
+        ]
+      },
+      {
+        "path": "lib/group_stay_web/router.ex",
+        "role": "HTTP route registration",
+        "before": "No payment statement route.",
+        "after": "Adds GET `/api/v1/payments/:payment_operation_id`.",
+        "refs": [
+          {
+            "m": 4,
+            "path": "lib/group_stay_web/router.ex",
+            "start": 11,
+            "end": 16
+          }
+        ]
+      },
+      {
+        "path": "priv/repo/migrations/20260401000000_add_room_accounting.exs",
+        "role": "Upgrade existing accounting storage",
+        "before": "Group settlement columns and credit redemptions.",
+        "after": "Creates allocation storage, reconstructs sources, and drops replaced tables/columns.",
+        "refs": [
+          {
+            "m": 4,
+            "path": "priv/repo/migrations/20260401000000_add_room_accounting.exs",
+            "start": 21,
+            "end": 64
+          },
+          {
+            "m": 4,
+            "path": "priv/repo/migrations/20260401000000_add_room_accounting.exs",
+            "start": 125,
+            "end": 188
+          },
+          {
+            "m": 4,
+            "path": "priv/repo/migrations/20260401000000_add_room_accounting.exs",
+            "start": 253,
+            "end": 281
+          }
+        ]
+      }
+    ],
+    "baseFingerprint": "7e06f2bb41e0452875dfc4847b18ff64287c73f58639b34f21aae37e578ec6fc",
+    "headFingerprint": "bcefbb7a4c0abd29eae1de32a73a07ec76223cfc734dbcd7e5d85316f282b090"
+  }
+}

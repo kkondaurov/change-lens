@@ -1,0 +1,65 @@
+{
+  "schemaVersion": 1,
+  "repository": "https://github.com/kkondaurov/change-lens",
+  "date": "2026-09-06",
+  "runId": "v6-claude-opus5-high-01",
+  "transformations": [
+    "Replaced personal absolute source, report, and working-directory paths with artifact-relative paths or logical run references.",
+    "Rewrote the runtime note with portable artifact references; recorded versions, commands, exit status, and limitations retained.",
+    "Rebuilt fresh-reviews.json from the published report and runtime-note copies.",
+    "Marked this inspected example public and updated manifest and UI hashes to the published bytes."
+  ],
+  "preserved": [
+    "All 237 selected snapshot files, their embedded contents, source hashes, fingerprints, and comparisons.",
+    "Historical evaluator report values, author handoff text and source line numbers.",
+    "The reviewer test and raw reproduction log, including measured values and expected assertion."
+  ],
+  "artifacts": {
+    "reviewer_active_totals_test.exs": {
+      "localCaptureSha256": "d2df41a872f0cfca2995666ed3ab58a52036048763b63d07e2e00ab7e672bcbf",
+      "publishedSha256": "d2df41a872f0cfca2995666ed3ab58a52036048763b63d07e2e00ab7e672bcbf"
+    },
+    "bundle.json": {
+      "localCaptureSha256": "cd83bbeecb55afd12b03b9024f4454382de420fadc1b4c0aae152e032f976d3c",
+      "publishedSha256": "4a1df271db7072513c433f26309abd87940a0f825b753ff9e3abf6c914bc7d52"
+    },
+    "m4-reproduction.log": {
+      "localCaptureSha256": "9107dda494b7043f6a01c00cc706c195f700afd2fe85a6b8d07a0fa1cbb3978e",
+      "publishedSha256": "9107dda494b7043f6a01c00cc706c195f700afd2fe85a6b8d07a0fa1cbb3978e"
+    },
+    "fresh-review-m4.md": {
+      "localCaptureSha256": "038e626508936235f2ad33ab75e0ff049d841eaeeb9de7ce7efe2ae361120e0e",
+      "publishedSha256": "5ffcb76f8c422125d22e424fa862830ac0e2fc401088f7d0d7e139e4f29caa5d"
+    },
+    "fresh-reviews.json": {
+      "localCaptureSha256": "501d31f17a99dbdbd4b3bc3a2295393e5a2773f180150f1f7a40b3f3e419a500",
+      "publishedSha256": "b27513386a6323e3307d6eff9705bc69ef8d302ae58ff9021835e54129b15b87"
+    },
+    "evidence-digest.md": {
+      "localCaptureSha256": "ea8bbadbb111108788d28b330cbf4ed782177c98999d829d02a7e7f71007fda9",
+      "publishedSha256": "7b4f1e859ffe7906a75b6383e65297160f94fd3631ac7b09c522aed259b3b996"
+    },
+    "manifest.json": {
+      "localCaptureSha256": "ddf463f12c68fce997ec24bdc46e127a01c4f550cc395b129ed3fd8e95da7edf",
+      "publishedSha256": "517f0db536a2ecc60a1a231b56e59bab3013d16a8ec1c119a38bcea313c372ed"
+    },
+    "fresh-review.md": {
+      "localCaptureSha256": "803d79a0a63ce5f85eaad19b15a489a376a4d7af79a9b321e1bdabf6267aa0e3",
+      "publishedSha256": "ab73d3a03d3826011fdb74ecbdb75bb45f99c01cbea8629ed9608838951e92b0"
+    },
+    "reproduction-environment.md": {
+      "localCaptureSha256": "909cded2ff8737c689639ac6e6d3832d139044b6cf05d83c17ca9f2a804bd8f3",
+      "publishedSha256": "43fae75d13eb3c30c02f74d4268d03dc6dfe86efb1167af9b4caefdefea32dbe"
+    }
+  },
+  "snapshotFingerprints": {
+    "2": "52a8f755f1b996a0b8fef125c1c438295aef8fed34e0ba594c6e75f780ad97be",
+    "3": "7e06f2bb41e0452875dfc4847b18ff64287c73f58639b34f21aae37e578ec6fc",
+    "4": "bcefbb7a4c0abd29eae1de32a73a07ec76223cfc734dbcd7e5d85316f282b090"
+  },
+  "notes": [
+    "The local capture hashes document the earlier package; those personal-path versions are not published.",
+    "Logical sweatbench-run and isolated-review references identify historical locations, not directories required on the new machine.",
+    "This publication record is packaging provenance, not a new review or test execution."
+  ]
+}

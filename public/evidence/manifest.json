@@ -1,0 +1,51 @@
+{
+  "schemaVersion": 1,
+  "runId": "v6-claude-opus5-high-01",
+  "importedAt": "2026-09-05T21:48:26.128011+00:00",
+  "sourceRoot": "sweatbench-run:v6-claude-opus5-high-01",
+  "bundleSha256": "4a1df271db7072513c433f26309abd87940a0f825b753ff9e3abf6c914bc7d52",
+  "localOnly": false,
+  "snapshots": {
+    "2": {
+      "fingerprint": "52a8f755f1b996a0b8fef125c1c438295aef8fed34e0ba594c6e75f780ad97be",
+      "fileCount": 66
+    },
+    "3": {
+      "fingerprint": "7e06f2bb41e0452875dfc4847b18ff64287c73f58639b34f21aae37e578ec6fc",
+      "fileCount": 78
+    },
+    "4": {
+      "fingerprint": "bcefbb7a4c0abd29eae1de32a73a07ec76223cfc734dbcd7e5d85316f282b090",
+      "fileCount": 93
+    }
+  },
+  "comparisons": {
+    "3": {
+      "base": 2,
+      "head": 3,
+      "sourceChangedCount": 8,
+      "testChangedCount": 12,
+      "docChangedCount": 2,
+      "changedFileCount": 22
+    },
+    "4": {
+      "base": 3,
+      "head": 4,
+      "sourceChangedCount": 18,
+      "testChangedCount": 11,
+      "docChangedCount": 2,
+      "changedFileCount": 31
+    }
+  },
+  "notes": [
+    "Historical author handoffs are not independent reviews.",
+    "Evaluator reports are historical, not fresh executions.",
+    "Aggregate evaluator totals may include system checks.",
+    "Snapshot fingerprints cover only the imported text source selection, not full repositories."
+  ],
+  "publication": {
+    "repository": "https://github.com/kkondaurov/change-lens",
+    "date": "2026-09-06",
+    "record": "publication.json"
+  }
+}

@@ -1,0 +1,33 @@
+Running ExUnit with seed: 0, max_cases: 24
+
+REVIEW_EVIDENCE {"before_last":{"cash_paid_cents":1000,"credit_paid_cents":0,"deposit_due_cents":10500,"deposit_paid_cents":1000,"lodging_total_cents":52500,"outstanding_deposit_cents":9500,"status":"active"},"after_last":{"cash_paid_cents":1000,"credit_paid_cents":0,"deposit_due_cents":10500,"deposit_paid_cents":1000,"lodging_total_cents":52500,"outstanding_deposit_cents":0,"status":"cancelled"},"active_rooms":0,"ledger":{"cash_charged_back_cents":0,"cash_converted_to_credit_cents":0,"cash_held_cents":0,"cash_reduced_cents":0,"cash_refunded_cents":10000,"cash_retained_cents":0,"credit_liability_cents":0,"credit_shortfall_cents":0}}
+
+
+  1) test group totals become zero when its last active room is cancelled (GroupStayWeb.ReviewerActiveTotalsTest)
+     test/group_stay_web/controllers/reviewer_active_totals_test.exs:5
+     Assertion with == failed
+     code:  assert Map.take(after_last, tl(fields)) == Map.new(tl(fields), &{&1, 0})
+     left:  %{
+              "cash_paid_cents" => 1000,
+              "credit_paid_cents" => 0,
+              "deposit_due_cents" => 10500,
+              "deposit_paid_cents" => 1000,
+              "lodging_total_cents" => 52500,
+              "outstanding_deposit_cents" => 0
+            }
+     right: %{
+              "cash_paid_cents" => 0,
+              "credit_paid_cents" => 0,
+              "deposit_due_cents" => 0,
+              "deposit_paid_cents" => 0,
+              "lodging_total_cents" => 0,
+              "outstanding_deposit_cents" => 0
+            }
+     stacktrace:
+       test/group_stay_web/controllers/reviewer_active_totals_test.exs:24: (test)
+
+
+Finished in 0.09 seconds (0.00s async, 0.09s sync)
+
+Result: 0/1 passed
+Failed: 1 test
