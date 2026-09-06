@@ -4,7 +4,9 @@
 
 Read the repository `AGENTS.md`, [README](../README.md), [approach](APPROACH.md), and [architecture](ARCHITECTURE.md). Install with `npm ci`, run the development server on `127.0.0.1:4393`, and open `?m=4&view=overview`. Run `npm test` and `npm run build` when verifying a checkout. The application is standalone; production output goes to `dist/` with no provider-specific hosting adapter.
 
-The user wants to continue experimenting at work. They have not yet chosen a workplace repository, MR, issue tracker integration, model backend, or deployment. Decide the next small adaptation with them in that environment. No company code or context is included here.
+The user wants to continue experimenting at work. The intended workflow has agents doing both implementation and the substantive review. Change Lens gives the human a way to gauge whether and where to pay attention, then investigate a selected subject and contribute judgment or guidance. The goal is meaningful involvement while preserving delivery speed and quality across whatever dimensions matter in that environment.
+
+The user has not yet chosen a workplace repository, MR, issue tracker integration, model backend, or deployment. Decide the next small adaptation with them in that environment. No company code or context is included here.
 
 ## Current state, September 6, 2026
 
@@ -18,15 +20,16 @@ The user wants to continue experimenting at work. They have not yet chosen a wor
 
 ## Preserve these decisions
 
-1. Start with the real task and the whole change. A defect is one part of the review, not its organizing substitute.
+1. Start with the real task and the whole change. Choose the relevant dimensions from the change and its environment; the GroupStay examples do not define a universal checklist. A defect is one part of the review, not its organizing substitute.
 2. Use exact operations, fields, contracts, and module names, with explanations of their behavior. Technical specificity alone is not sufficient if its meaning stays opaque.
 3. Show the difference between what the request requires and what the implementation does. Avoid an unqualified “does” or “should.”
 4. Keep author claims, reviewer inspection, executed evidence, test assertions, inference, and missing context identifiable.
-5. Let the human challenge an assumption or provide context at the relevant subject. Keep source and snapshot provenance through the handoff.
+5. Support both deciding where attention is useful and investigating that subject in depth. Let the human challenge an assumption or provide context there. Keep the whole change navigable beyond the agent's highlights, and preserve source and snapshot provenance through the handoff.
 6. Treat representation as a way to inspect the change. Do not reintroduce cute headings, generic risk scores, decorative diagrams, or invented simulations that imply they ran the implementation.
 7. Keep the reviewing workflow independent of the author using this system. An existing MR is the primary intended entry point; local pre-MR review is also useful.
-8. The agent still conducts code review under repository-specific instructions. The instrument adds a human entry point into that work.
+8. The agent does the substantive review under repository-specific instructions. Human participation can be selective; the instrument must not require the person to repeat that review or add a mandatory approval step to every change. Existing team approval rules remain applicable.
 9. Treat passing required tests and checks as the entry condition for review, locally or in CI. Start from those results. Review their coverage and expectations, and target additional verification at concrete gaps or failure hypotheses.
+10. Evaluate attention choices and investigation quality together with delivery speed and the quality criteria relevant to the change. More intervention or more time in the UI is not an outcome to optimize for.
 
 ## A useful first workplace experiment
 
@@ -34,9 +37,9 @@ Select one existing, unfamiliar MR whose required checks pass, with a linked tas
 
 Adapt the renderer to present that one change alongside the existing GroupStay example. Separate case selection, source identity, contract descriptions, findings, and execution evidence from the current hardcoded `App.jsx` content. Namespace notebook storage by repository/change/snapshot before multiple real changes share an origin.
 
-Choose the representation from the task: a contract table, state diagram, request sequence, or module map when it explains a real relationship. Do not make a universal visualization framework the first milestone. Record absent production/client context instead of filling it in.
+Choose the dimensions and representation from the task. A security or scaling change may need a substantially different account from the GroupStay examples; their contract tables and module maps are starting examples, not mandatory views. Extend the format where the actual case requires it. Record absent context instead of filling it in.
 
-Sit with the human reviewer. Can they explain the consequential behavior difference, distinguish requirement from implementation, locate evidence, identify a missing assumption, and provide actionable guidance? What did the instrument obscure? Use their answers to choose the next iteration. The [review protocol](../REVIEW_PROTOCOL.md) describes a more controlled comparison with an ordinary MR plus agent report.
+Sit with the human while the agent's review is available. Can they judge what merits their attention, investigate that subject, identify a missing assumption, and provide useful guidance? Can they explore something the agent did not flag? What did the instrument obscure or unnecessarily slow down? Use those observations to choose the next iteration. The [review protocol](../REVIEW_PROTOCOL.md) describes a comparison that considers quality and delay as well as human understanding.
 
 ## Known implementation work
 

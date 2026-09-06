@@ -20,7 +20,7 @@ There is no live model call, MR connector, issue-tracker connector, job runner, 
 
 ## Current structured account
 
-This is the shape consumed by the current renderer, not a declared general interchange standard. `src/reviews.json` is keyed by submitted milestone (`"3"` or `"4"`). Each review includes:
+This is the shape consumed by the current renderer, not a declared general interchange standard. Its contract and module fields reflect the GroupStay cases. Other changes may need different dimensions and representations, such as access rules or measurements across workloads; do not force every review into this structure. `src/reviews.json` is keyed by submitted milestone (`"3"` or `"4"`). Each review includes:
 
 ```text
 id, title, summary, requestPath
@@ -57,7 +57,9 @@ The bundle's snapshot fingerprint is SHA-256 over sorted `path + NUL + file-sha2
 
 Adding a new JSON file alone will not make a new MR work. The smallest useful next implementation is to extract those assumptions into an explicit case manifest and add one workplace example, while preserving the current sample. Design a finding/evidence format from those two cases rather than pretending the current format already covers everything.
 
-A later live integration can have an agent emit validated artifacts and have this renderer consume them. Useful validation includes source existence, correct base/head identity, line ranges, typed evidence, explicit review scope, and stale-claim detection. Do not infer that a claim was revalidated merely because a new snapshot has loaded.
+A later live integration can have the reviewing agent emit validated artifacts while doing the substantive review, with the renderer supporting both an overview for choosing where to pay attention and deeper inspection of a selected subject. Human guidance should return to the author or reviewing agent with its source context. This integration is not implemented yet.
+
+Useful validation includes source existence, correct base/head identity, line ranges, typed evidence, explicit review scope, and stale-claim detection. Do not infer that a claim was revalidated merely because a new snapshot has loaded.
 
 ## Verification
 

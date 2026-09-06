@@ -4,14 +4,17 @@ Read `README.md`, `docs/APPROACH.md`, `docs/ARCHITECTURE.md`, and `docs/HANDOFF.
 
 ## Review content
 
+- The design assumes agents do both implementation and the substantive review. Help the human gauge whether and where to pay attention, then investigate that subject and provide guidance without repeating the whole review. Preserve delivery speed and quality as goals to evaluate; do not create a new mandatory human approval step.
+- Choose scope dimensions and representations from the actual change, its environment, and applicable review instructions. Security, behavior at scale, compatibility, and other concerns may matter. The GroupStay examples and current views are not an exhaustive taxonomy or a required template for every change.
 - The intended review workflow starts with required tests and checks already passing for the submitted change. Use existing CI or local results as baseline evidence. Focus on coverage, assertion correctness, and system fit; target additional verification at concrete gaps or failure hypotheses.
-- Ground each material account in the actual requirements, API contracts, fields, modules, and baseline/submitted source. Include direct source references.
+- Ground each material account in the actual task and implementation, using the sources appropriate to that change. Contracts, modules, configuration, and measurements are examples. Include direct source references.
 - Keep baseline behavior, required behavior, implemented behavior, and reviewer assessment distinct. Label inference and missing context.
 - Describe the full change before focusing on a particular finding.
 - Explain concrete operations and fields. Do not substitute unexplained names or generic prose for their meaning.
 - Use literal technical headings. The initial editorial narrative and generated mock were rejected; do not restore metaphors, cute copy, rhetorical headings, or invented simulations.
 - Prefer actual requests, results, and tests. Distinguish requirement examples, test assertions, captured execution, static inspection, and unverified claims.
 - Make essential grounding visible with its subject, not only in a secondary evidence panel.
+- Keep the whole change and review available to explore, including areas the agent did not flag. A request for closer investigation can itself be a useful human intervention.
 - Preserve review scope and the distinction between author handoff, independent reviewer assessment, and historical evaluator outcomes.
 
 ## Scope and iteration

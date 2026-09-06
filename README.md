@@ -1,8 +1,10 @@
 # Change Lens
 
-Change Lens is a review workspace for understanding an agent-produced software change and deciding where to provide human guidance. It connects the requested behavior, the system before and after the change, the agent's review, and the evidence behind each account.
+Change Lens explores how humans can stay meaningfully involved when agents both produce software changes and do the substantive work of reviewing them. The agent investigates the change; the human needs to gauge whether something deserves their attention, then explore that part deeply enough to contribute judgment or guidance.
 
-The premise is that a human should be able to engage in a review without first reconstructing the whole implementation from a diff. That still requires concrete engineering detail: API contracts, data fields, module responsibilities, state transitions, and tests. The instrument must make those details easier to inspect.
+The goal is to preserve the speed of agent-driven development and the quality of its outcomes while making human involvement useful. Quality depends on the change and its environment; correctness, security, behavior at scale, and maintainability are examples of concerns that may matter. This is a goal to evaluate, not an established result.
+
+The instrument connects the problem, the scope and consequences of the implementation, the agent's review, and their supporting evidence. A human can get an overview, select a specific question or assumption, inspect its requirements and before/after behavior, and send guidance back to the agent. The whole change remains available to explore, including areas the agent did not flag. Relevant dimensions and representations are chosen for each change.
 
 **Status:** working local prototype with two curated examples. It does not yet analyze arbitrary merge requests or call a live agent. The next experiment is to adapt it to one actual workplace change with a reviewer.
 

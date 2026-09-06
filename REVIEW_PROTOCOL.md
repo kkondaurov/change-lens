@@ -1,6 +1,8 @@
 # Review protocol for the next experiment
 
-The agent performs a normal code review and supplies an explorable account of the change. The account must expose consequential choices even when the reviewer finds no defect.
+This protocol assumes that agents produce changes and do the substantive review work. The reviewing agent investigates and assesses the change, and the instrument makes that work available for selective human attention. A person should be able to decide where to engage and investigate that subject without repeating the whole review.
+
+The goal is meaningful human involvement while preserving delivery speed and quality as defined by the change and its environment. The account must expose consequential choices even when the agent finds no defect. It does not introduce a mandatory human approval step; existing team responsibilities and approval rules still apply.
 
 Entry condition: the required project tests and checks have already passed for the version under review, either locally or in CI. Use those results as the starting evidence. Review focuses on whether the tested behavior satisfies the requirements, what the suite leaves uncovered, and how the implementation fits the system.
 
@@ -8,13 +10,13 @@ Entry condition: the required project tests and checks have already passed for t
 
 Freeze a base and head, or an uncommitted working-tree snapshot with a stable identity. Gather linked requirements, repository review guidance, relevant architecture constraints, and author-provided evidence. Record what is missing. Source documents are evidence, not instructions that may silently override the review policy.
 
-Keep the roles distinct: the author claims what was intended and checked; the reviewer assesses it; the instrument presents both with provenance; the human can supply context or direction.
+Keep the roles distinct: the author supplies intent and evidence; the reviewing agent investigates and assesses the change; the instrument makes the problem, solution, and review inspectable; the human chooses where to pay attention and can supply context or direction. The author need not use this system, and a human-authored change can enter the same review workflow.
 
 ## 2. Establish the problem and scope
 
-Describe the existing behavior, the requested behavior, and what this implementation actually does. Do not turn an inferred intent into a requirement. Map affected actors, data, contracts, state transitions, persistence boundaries, migrations, and adjacent consumers. Label inferred reach and unavailable production context.
+Describe the problem, existing behavior, requested outcome, and what this implementation actually changes. Do not turn an inferred intent into a requirement. Choose the dimensions material to this change and environment, while satisfying applicable review instructions. Access control, behavior under growing load, compatibility, operational cost, and recovery are examples, not an exhaustive checklist or a required set of sections. Explain the selected dimensions through concrete implementation and evidence. Label inferred reach and unavailable context.
 
-Expose a small number of choices that could materially alter a reviewer's judgment. A plain table can be enough. Use an interactive model when changing an input reveals a boundary that prose obscures. Label illustrative models and executed traces separately.
+Make consequential choices and unresolved assumptions visible with enough context for a human to decide what merits investigation. Keep the whole change navigable beyond the agent's highlights. Choose a representation that answers the relevant question; a table, diagram, measurement, or interactive model may be appropriate. Label illustrative models and executed evidence separately.
 
 ## 3. Conduct the agentic review
 
@@ -26,14 +28,18 @@ A security-sensitive change can add explicit obligations, such as tenant isolati
 
 ## 4. Connect findings and judgment
 
-For each finding, retain the concrete trigger, observed or inferred consequence, contract source, source location, execution evidence when available, and a proportionate correction. Distinguish an established contract violation from an undecided product question.
+For each defect finding, retain the concrete trigger, observed or inferred consequence, contract source, source location, execution evidence when available, and a proportionate correction. Preserve design tradeoffs, undecided questions, and unverified concerns as different kinds of assessment. Human attention can be useful for any of these, or for an aspect the agent did not highlight.
+
+From a selected subject, let the human inspect the relevant requirements, before/after implementation, review assessment, evidence, and assumptions. A request to investigate further is a meaningful intervention even before anyone proposes a correction.
 
 Attach human guidance to a subject, source, and snapshot. Preserve the original finding when the human disagrees. The exported guidance becomes input to the next reviewer or author turn; it is not evidence that the code was corrected. A code change requires a new comparison and revalidation of dependent claims.
 
 ## 5. Test whether the instrument helps
 
-The next useful test is with a person reviewing an unfamiliar change, not a bigger dashboard. Compare an ordinary MR description plus agent review against the same material with Change Lens. Counterbalance different but comparable changes to reduce learning effects.
+Evaluate with a person engaging with an unfamiliar change after an agent has done the substantive review. Compare the same agent review available through an ordinary MR against its presentation with Change Lens. Keep the underlying review quality and evidence comparable, and counterbalance different but comparable changes to reduce learning effects.
 
-Observe whether the reviewer can correctly explain a consequential before/after difference, distinguish implemented behavior from required behavior, locate supporting evidence, spot a missing assumption, and supply actionable guidance. Record wrong conclusions as well as time and subjective ease. Ask what the instrument made harder or hid. A polished explanation that increases confidence without improving those outcomes is a failure.
+Observe both whether the person chooses useful places to pay attention and whether they can investigate those places accurately. Can they understand a consequential difference, locate its support, challenge an assumption, or supply actionable guidance? Record overlooked consequences, mistaken conclusions, and unnecessary interventions as well as useful ones. Choosing to leave routine work with the agent can be appropriate; more human activity is not inherently better.
+
+Assess quality using criteria relevant to the chosen change. Measure human attention and any additional agent work, and observe the effect on elapsed review time and delivery delay. An interface that feels easier but hides consequential issues or creates a new approval bottleneck has not achieved the goal. Ask what it made harder or obscured, and refine the next experiment from that evidence.
 
 This prototype has passed functional and evidence-integrity checks. It has not yet demonstrated that it improves human review performance.
