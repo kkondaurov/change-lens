@@ -2,7 +2,7 @@
 
 ## Start here
 
-Read the repository `AGENTS.md`, [README](../README.md), [approach](APPROACH.md), and [architecture](ARCHITECTURE.md). Install with `npm ci`, run the development server on `127.0.0.1:4393`, and open `?m=4&view=overview`. Run `npm run build` then `npm test` when verifying a checkout.
+Read the repository `AGENTS.md`, [README](../README.md), [approach](APPROACH.md), and [architecture](ARCHITECTURE.md). Install with `npm ci`, run the development server on `127.0.0.1:4393`, and open `?m=4&view=overview`. Run `npm test` and `npm run build` when verifying a checkout. The application is standalone; production output goes to `dist/` with no provider-specific hosting adapter.
 
 The user wants to continue experimenting at work. They have not yet chosen a workplace repository, MR, issue tracker integration, model backend, or deployment. Decide the next small adaptation with them in that environment. No company code or context is included here.
 

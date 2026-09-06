@@ -24,8 +24,8 @@ The primary intended user is someone reviewing an existing MR, regardless of how
 - Keep captured source snapshots immutable as examples. New comparisons need new identities and a reviewed account.
 - Do not bypass an evidence-lock mismatch by merely changing hashes. The publication-only metadata normalization is documented in `docs/PROVENANCE.md` and its manifest; it is not permission to silently replace evidence.
 - Preserve notebook data and its snapshot provenance. Use a migration or new case-specific key when changing storage.
-- Run `npm run build` then `npm test` after implementation or evidence changes. The build is a prerequisite for the packaging test.
+- Run `npm test` and `npm run build` after implementation or evidence changes. Tests run independently of the build.
 - Start the local server and open the review when the environment permits it. Do not claim recorded GroupStay tests were freshly executed.
-- Keep the optional hosting adapter (`worker/index.js`, `.openai/hosting.json`, build script, and adapter tests) working. Repository publication does not require a hosted website.
+- Keep this a standalone Vite application. The user requested removal of the starter's hosting integration; do not reintroduce provider-specific deployment configuration without a new request. The production build is static output in `dist/`.
 - Do not include secrets, private transcripts, browser notes, dependencies, databases, or company material in public commits. The importer is not a publication sanitizer.
 - Respect `LICENSE` and third-party notices. Downstream proprietary modifications are permitted by the project's 0BSD license; existing third-party terms remain applicable.

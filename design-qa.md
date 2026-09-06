@@ -55,6 +55,8 @@ Interactions verified:
 
 Production build passed. Nine Node tests and two Python tests passed. Node checks cover source hash consistency, changed-evidence rejection, complete source references with correct baseline/head versions, captured execution values, note provenance, and template packaging/server behavior.
 
+These counts describe the interface rework at the time. Subsequent repository publication added a publication-integrity check, and the user then requested removal of the template hosting adapter and its four tests. The standalone project now has six Node tests and two Python tests; its build writes static output to `dist/`.
+
 No new candidate-service execution or benchmark scoring was performed during this interface rework. The preserved M4 reproduction remains an intentionally failing test demonstrating the application defect.
 
 ## Remaining limits

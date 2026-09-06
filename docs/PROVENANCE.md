@@ -64,6 +64,6 @@ The original candidate suites passed 154 tests in M3 and 233 in M4 before the ad
 
 ## Continuing at work
 
-Use the initial public commit or `v0.1.0` tag as the import baseline and record it in the company's destination repository. Keep the license, applicable third-party notices, and the imported revision identifiable according to the destination's process. The project's 0BSD license does not require publication of company modifications.
+Record the exact public commit you import in the company's destination repository. The `v0.1.0` tag marks the initial publication; use the current `main` branch for the standalone version after removal of the starter hosting adapter. Keep the license, applicable third-party notices, and the imported revision identifiable according to the destination's process. The project's 0BSD license does not require publication of company modifications.
 
 This provides a public source and revision record. It is not an assignment of employee-created IP, a patent clearance, or a determination of an employer's internal approval requirements. Ownership of later work is governed by the applicable employment arrangements and law, not by this repository's README.

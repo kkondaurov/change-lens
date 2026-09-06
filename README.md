@@ -21,12 +21,14 @@ npm run dev -- --host 127.0.0.1 --port 4393 --strictPort
 
 Open [the M4 review](http://127.0.0.1:4393/?m=4&view=overview). Switch to M3 using the snapshot selector.
 
-To verify a checkout, build first: one packaging test checks the build output.
+To verify a checkout, run the tests and build. Tests do not depend on build output.
 
 ```sh
-npm run build
 npm test
+npm run build
 ```
+
+The production build writes static files to `dist/`. Use `npm run preview` to serve that build locally, or serve `dist/` from a static web server. There is no provider-specific deployment configuration.
 
 The UI is a React/Vite application. It reads bundled JSON and text files; notes live in browser storage and can be exported as Markdown. There is no database, authentication, telemetry, or agent service. This experiment is intended for desktop use.
 

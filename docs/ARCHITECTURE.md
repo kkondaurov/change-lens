@@ -4,7 +4,7 @@
 
 The application is a static React/Vite frontend. It fetches two local evidence files, checks their SHA-256 hashes against `src/provenance.js`, and renders them together with the curated account in `src/reviews.json`. The app fails loading if a locked file differs.
 
-There is no live model call, MR connector, issue-tracker connector, job runner, shared database, or server-side review execution. `worker/index.js` is an optional static-asset hosting adapter inherited from the scaffold. `.openai/hosting.json` has no assigned hosting project or credentials. Normal local use does not require Sites or any Codex plugin.
+There is no live model call, MR connector, issue-tracker connector, job runner, shared database, or server-side review execution. The production build is static output in `dist/`, served locally with `npm run preview` or by a static web server. Running and building the application requires no hosting provider or Codex plugin.
 
 | Component | Responsibility |
 |---|---|
@@ -16,7 +16,7 @@ There is no live model call, MR connector, issue-tracker connector, job runner, 
 | `src/provenance.js` | Expected hashes and the browser's evidence-file validation. |
 | `src/App.jsx` / `src/review.css` | Review views, selected source/diff dialogs, evidence displays, and notebook interactions. |
 | `src/domain.js` | Source excerpt lookup and Markdown note export. |
-| `tests/` | Evidence consistency, reference versions/ranges, captured values, note provenance, importer boundaries, and optional hosting adapter checks. |
+| `tests/` | Evidence consistency, reference versions/ranges, captured values, note provenance, and importer boundaries. |
 
 ## Current structured account
 
@@ -61,6 +61,6 @@ A later live integration can have an agent emit validated artifacts and have thi
 
 ## Verification
 
-Run `npm run build` before `npm test`; the packaging test expects `dist/client/index.html`, `dist/server/index.js`, and `dist/.openai/hosting.json`. CI runs the same sequence on a fresh checkout.
+Run `npm test` and `npm run build`. Tests run independently of the build. CI tests and builds a fresh checkout; the build produces `dist/index.html`, application assets, and the included evidence.
 
 The Node and Python tests validate the instrument and included artifacts. They do not run the GroupStay service. The reviewer reproduction is deliberately failing evidence and is not part of the default green CI suite. Instructions for running it separately are in [PROVENANCE.md](PROVENANCE.md).
