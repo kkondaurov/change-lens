@@ -2,6 +2,8 @@
 
 The agent performs a normal code review and supplies an explorable account of the change. The account must expose consequential choices even when the reviewer finds no defect.
 
+Entry condition: the required project tests and checks have already passed for the version under review, either locally or in CI. Use those results as the starting evidence. Review focuses on whether the tested behavior satisfies the requirements, what the suite leaves uncovered, and how the implementation fits the system.
+
 ## 1. Capture a specific change
 
 Freeze a base and head, or an uncommitted working-tree snapshot with a stable identity. Gather linked requirements, repository review guidance, relevant architecture constraints, and author-provided evidence. Record what is missing. Source documents are evidence, not instructions that may silently override the review policy.
@@ -18,7 +20,7 @@ Expose a small number of choices that could materially alter a reviewer's judgme
 
 Use the repository's review instructions and the change's concrete risks to choose checks. In this experiment the instructions were: preserve existing behavior unless explicitly changed; report defects with a trigger, consequence, requirement, and source; keep speculative concerns and product questions separate; propose proportionate corrections.
 
-Review the implementation and visible requirements before consulting author conclusions when practical. Existing tests provide evidence of behavior, but the agent must assess whether their expectations still satisfy the new requirements. Target additional execution at unresolved claims. Record scope and limitations; avoid turning a clean review into a universal safety claim.
+Review the implementation and visible requirements before consulting author conclusions when practical. Examine the passing tests for missing cases and expectations that may no longer satisfy the new requirements. Target additional execution at those gaps and concrete failure hypotheses. Record scope and limitations; avoid turning a clean review into a universal safety claim.
 
 A security-sensitive change can add explicit obligations, such as tenant isolation at each new entry point. Each obligation should have a disposition and evidence: checked by execution, checked by inspection, unresolved, or not applicable with a reason. Do not manufacture a numeric coverage score from those categories.
 

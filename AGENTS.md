@@ -4,6 +4,7 @@ Read `README.md`, `docs/APPROACH.md`, `docs/ARCHITECTURE.md`, and `docs/HANDOFF.
 
 ## Review content
 
+- The intended review workflow starts with required tests and checks already passing for the submitted change. Use existing CI or local results as baseline evidence. Focus on coverage, assertion correctness, and system fit; target additional verification at concrete gaps or failure hypotheses.
 - Ground each material account in the actual requirements, API contracts, fields, modules, and baseline/submitted source. Include direct source references.
 - Keep baseline behavior, required behavior, implemented behavior, and reviewer assessment distinct. Label inference and missing context.
 - Describe the full change before focusing on a particular finding.

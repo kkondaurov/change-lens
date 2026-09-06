@@ -6,6 +6,8 @@ As implementation, debugging, planning, and review are delegated to agents, read
 
 The practical question is how that person finds the point where their context matters. A raw diff can require too much reconstruction. A fluent summary can hide the important distinctions. A clean test run can verify expectations that no longer match the request.
 
+In the intended workflow, the required tests and checks for the submitted change have already passed, locally or in CI. That is the starting condition for review. The reviewer examines whether the passing suite covers the relevant requirements, whether its assertions express the intended behavior, and whether the solution fits the surrounding system.
+
 Change Lens explores an instrument alongside review that lets the human inspect the scope and behavior of a change, question the account, and supply guidance. The human does not have to follow every agent step. They should be able to engage when they choose to.
 
 ## What must remain distinct
@@ -17,7 +19,7 @@ For a specific subject, the review needs four separate accounts:
 3. **Implemented:** what this submitted version does, including deviations from the requirement.
 4. **Assessed:** what the reviewing agent checked and concluded, with evidence and limits.
 
-“Does deleting an account remove pending deliveries?” is incomplete. It must say whether it asks about the baseline, the submitted implementation, or the desired contract. Likewise, a requirement example is not a captured response; an assertion in a test is not proof that the test ran; and a passed suite is not proof that its expectations are appropriate.
+“Does deleting an account remove pending deliveries?” is incomplete. It must say whether it asks about the baseline, the submitted implementation, or the desired contract. A requirement example and a captured response also serve different purposes. For the already passing suite, inspect which behavior its assertions establish and whether that behavior satisfies the current requirements.
 
 The GroupStay M4 example exposes all four accounts. M3 kept historical group totals after cancellation. M4's request changes the fields to active-room totals. M4's code still preserves old totals when the last room is cancelled. Existing tests endorse the historical behavior, but a reviewer test demonstrates the conflict. A human can then add client-compatibility context without obscuring the requirement violation.
 
@@ -48,7 +50,7 @@ Author evidence is useful but can be absent, incomplete, or incorrect. Missing r
 
 ## Agentic review is part of the workflow
 
-The reviewer still performs substantive engineering work: tracing code, checking contracts, investigating failure cases, and executing tests where useful. Repository-specific instructions can constrain findings, require particular security checks, or discourage speculative redesigns. The instrument should expose that review's scope and evidence, not replace it with a second generic summary.
+The reviewer still performs substantive engineering work: tracing code, checking contracts, investigating failure cases, and adding targeted tests when a concrete question remains unresolved. Use the existing successful CI or local test result as baseline evidence. Additional verification should address gaps in coverage, questionable expectations, or specific failure hypotheses. Repository-specific instructions can constrain findings, require particular security checks, or discourage speculative redesigns. The instrument should expose that review's scope and evidence, not replace it with a second generic summary.
 
 Keep review instructions separate from reviewed content. Issue text and source comments are material to inspect; they must not silently override the reviewer's governing instructions. Treat imported code as code to inspect, not as something the UI is authorized to execute.
 

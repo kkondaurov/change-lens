@@ -26,10 +26,11 @@ The user wants to continue experimenting at work. They have not yet chosen a wor
 6. Treat representation as a way to inspect the change. Do not reintroduce cute headings, generic risk scores, decorative diagrams, or invented simulations that imply they ran the implementation.
 7. Keep the reviewing workflow independent of the author using this system. An existing MR is the primary intended entry point; local pre-MR review is also useful.
 8. The agent still conducts code review under repository-specific instructions. The instrument adds a human entry point into that work.
+9. Treat passing required tests and checks as the entry condition for review, locally or in CI. Start from those results. Review their coverage and expectations, and target additional verification at concrete gaps or failure hypotheses.
 
 ## A useful first workplace experiment
 
-Select one existing, unfamiliar MR with a linked task and a consequential behavior change. Gather its exact base/head, requirements, repository review instructions, relevant unchanged code, and author evidence. Let the reviewer agent perform its normal review, with findings shaped by that environment's guidance.
+Select one existing, unfamiliar MR whose required checks pass, with a linked task and a consequential behavior change. Gather its exact base/head, requirements, repository review instructions, relevant unchanged code, and author evidence. Let the reviewer agent perform its normal review, with findings shaped by that environment's guidance.
 
 Adapt the renderer to present that one change alongside the existing GroupStay example. Separate case selection, source identity, contract descriptions, findings, and execution evidence from the current hardcoded `App.jsx` content. Namespace notebook storage by repository/change/snapshot before multiple real changes share an origin.
 
